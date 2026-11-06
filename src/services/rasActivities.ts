@@ -1,0 +1,18 @@
+export const ATIVIDADES = [
+  'Acompanhamento das áreas de APP e reservatório',
+  'Comunicação e Educação Ambiental',
+  'Ger. de Res. Sólidos e Líquidos',
+  'Gerenciamento de Riscos',
+  'Gestão Ambiental',
+  'Mon. de Instabilidade de taludes e processos erosivos',
+  'Mon. e Controle de Macrófitas',
+  'Monitoramento - Efluentes',
+  'Monitoramento - Fauna Aquática',
+  'Monitoramento - Fauna Atropelada',
+  'Monitoramento - Fauna Terrestre',
+  'Monitoramento - Qualidade da Água',
+  'Recuperação de Áreas Degradadas',
+  'Resgate / Salvamento - Fauna Aquática',
+  'Supressão da Vegetação',
+  'Visitação de estruturas da usina',
+];

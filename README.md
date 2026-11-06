@@ -1,36 +1,219 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DELTA CORTEX — SISTEMA INTEGRADO DE GESTÃO
+## DELTA S ENGENHARIA & CONSULTORIA AMBIENTAL
 
-## Getting Started
+O **Delta CorteX** é o sistema corporativo central da **Delta S Engenharia**, empresa brasileira especializada em engenharia, estudos de viabilidade, licenciamento ambiental, supervisão de obras e monitoramento socioambiental de empreendimentos de geração de energia renovável:
+- **Centrais Geradoras Hidrelétricas (CGHs)**, **Pequenas Centrais Hidrelétricas (PCHs)** e **Usinas Hidrelétricas (UHEs)**;
+- **Parques Eólicos** e **Complexos Fotovoltaicos (Usinas Solares)**;
+- **Biogás** e outras fontes limpas de energia.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 1. OBJETIVO DO SISTEMA
+
+Prover aos engenheiros, biólogos, gestores, técnicos de campo e consultores ambientais uma plataforma ágil, responsiva e de alta precisão para:
+- Cadastro e gestão unificada de **Clientes** e empreendedores;
+- Planejamento e execução de **Visitas de Acompanhamento Sistemático** de campo;
+- Levantamento georreferenciado em tempo real com conversão geodésica para **Coordenadas UTM WGS84**;
+- Registro padronizado de **Observações** e **Ocorrências** (classificadas por gravidade e meio ambiental: Fauna, Flora, Físico e Social);
+- Captura de **Fotografias de Campo com Estampa Indelével via Canvas** (incorporando a marca Delta S, data, hora, cliente/projeto e coordenadas UTM na própria imagem);
+- Visualização cartográfica e de imagens de satélite de alta resolução com plotagem imediata de marcadores persistidos localmente.
+
+---
+
+## 2. TECNOLOGIAS UTILIZADAS
+
+| Camada | Tecnologia / Biblioteca | Finalidade |
+|---|---|---|
+| **Framework** | Next.js 16 (App Router) | Renderização híbrida, rotas modulares e otimização |
+| **Biblioteca de UI** | React 19 & TypeScript | Componentização tipada e interfaces de alta performance |
+| **Estilização** | Tailwind CSS v4 | Design system com a paleta oficial da Delta S Engenharia |
+| **Ícones** | Lucide React | Iconografia corporativa consistente e elegante |
+| **Cartografia & SIG** | Leaflet | Mapas interativos de satélite de alta resolução e camadas vetoriais |
+| **Provedores de Satélite** | Esri World Imagery / MapTiler | Camada de imagens orbitais de alta definição |
+| **Cálculo Geodésico** | Proj4 | Conversão precisa de Graus Decimais (WGS84) para Projeção UTM (Fuso e Hemisfério automáticos) |
+| **Processamento Gráfico** | HTML5 Canvas API | Carimbo indelével e incorporação da legenda oficial sobre as fotos |
+| **Geolocalização** | Web Geolocation API (`watchPosition`) | Monitoramento contínuo da posição do técnico em campo e precisão |
+| **Persistência Local** | IndexedDB (`idb`) | Armazenamento desacoplado em repositórios (sem limite de 5MB do localStorage) |
+
+---
+
+## 3. PALETA OFICIAL DE CORES (DELTA S)
+
+As cores oficiais extraídas da identidade visual da Delta S Engenharia foram configuradas como variáveis globais:
+- **Grafite (`#333436`)**: Cor predominante de menus, cabeçalhos operacionais e títulos.
+- **Azul (`#00AFF0`)**: Ações principais, botões de destaque primário, raio GPS e marcadores de Observação.
+- **Verde (`#A3CA33`)**: Destaque secundário, confirmações e selos ambientais.
+- **Cinza (`#97989A`)**: Bordas e textos auxiliares de apoio.
+- **Branco (`#FFFFFF`)**: Fundo dos cartões e superfícies de alto contraste.
+
+---
+
+## 4. ESTRUTURA DO PROJETO
+
+```text
+Delta CorteX/
+├── public/
+│   ├── logo-delta-s.png       # Logomarca oficial fornecida da Delta S
+│   └── logo-delta-s.jpg
+├── src/
+│   ├── app/
+│   │   ├── page.tsx           # Tela de Login demonstrativo corporativo
+│   │   ├── dashboard/page.tsx # Menu Principal (6 Módulos Corporativos)
+│   │   ├── clientes/page.tsx  # Módulo de Gestão de Clientes (Tabela, Filtros, Busca)
+│   │   ├── acompanhamento/
+│   │   │   ├── page.tsx       # Dashboard de Acompanhamento Sistemático
+│   │   │   └── visita/[id]/   # Ferramenta Operacional de Visita com Mapa de Satélite
+│   │   ├── modulos/[slug]/    # Módulos em desenvolvimento (Corpo Técnico, Projetos, etc.)
+│   │   ├── globals.css        # Tema oficial Delta S, Tailwind CSS e estilos SIG
+│   │   └── layout.tsx         # Layout raiz com metadados e viewport mobile
+│   ├── components/
+│   │   ├── Header.tsx         # Cabeçalho unificado com a marca oficial
+│   │   ├── ModuleCard.tsx     # Cartões interativos do Menu Principal
+│   │   ├── ClientModal.tsx    # Modal de cadastro/edição de clientes com validações
+│   │   ├── ClientDetailsModal.tsx # Modal de visualização completa do cliente
+│   │   ├── NewVisitModal.tsx  # Modal de abertura de Nova Visita
+│   │   ├── FieldRecordModal.tsx # Formulário de Observação/Ocorrência com foto e UTM
+│   │   └── Map/
+│   │       ├── LeafletMap.tsx # Mapa Leaflet com satélite Esri e marcadores
+│   │       └── MarkerDetailsModal.tsx # Detalhes do ponto e lightbox de fotos
+│   ├── hooks/
+│   │   └── useGeolocation.ts  # Hook de GPS contínuo e encerramento de watchPosition
+│   ├── services/
+│   │   ├── storage.ts         # Camada de repositórios IndexedDB desacoplada
+│   │   ├── utm.ts             # Conversão geodésica WGS84 -> UTM com Proj4
+│   │   ├── photoStamper.ts    # Carimbo indelével Canvas nas fotos de campo
+│   │   └── validation.ts      # Validações reais de CPF, CNPJ, e-mail e máscaras
+│   └── types/
+│       └── index.ts           # Interfaces e tipos de dados TypeScript
+├── package.json
+├── tsconfig.json
+└── README.md
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 5. COMO EXECUTAR O PROJETO LOCALMENTE
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Pré-requisitos
+- **Node.js** v18 ou superior (testado com Node v24).
+- **NPM** instalado.
 
-## Learn More
+### Passo 1: Instalação das dependências
+Caso já não estejam instaladas no diretório:
+```bash
+npm install
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Passo 2: Inicializar o servidor de desenvolvimento
+```bash
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Abra o navegador em: [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## 6. CONFIGURAÇÃO DO PROVEDOR DE SATÉLITE
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+O sistema já vem integrado nativamente com o provedor **Esri World Imagery** de alta resolução, que funciona imediatamente em qualquer domínio ou localhost sem necessidade de chave prévia.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Caso deseje utilizar o provedor **MapTiler Satellite**, basta criar um arquivo `.env.local` na raiz com sua chave pública:
+```env
+NEXT_PUBLIC_MAPTILER_KEY=sua_chave_maptiler_aqui
+```
+
+---
+
+## 7. ESCOPO IMPLEMENTADO VS. DEMONSTRATIVO (ETAPA 1)
+
+### Funções 100% Implementadas e Funcionais
+- **Login Demonstrativo**: Acesso direto com um clique, apresentando a marca Delta S original e aviso claro sobre a versão preliminar.
+- **Menu Principal**: Navegação completa entre os 6 módulos do Delta CorteX com identidade visual coesa.
+- **Módulo Clientes**:
+  - Cadastro completo de Pessoa Física e Jurídica;
+  - Máscaras automáticas (CPF/CNPJ, Telefone, CEP);
+  - Validação real de dígitos verificadores de CPF e CNPJ;
+  - Validação de e-mail e verificação de duplicidade de documento;
+  - Busca textual em tempo real (nome, razão social, CPF/CNPJ, responsável);
+  - Filtros por Tipo (PF/PJ) e Estado da Federação (UF);
+  - Ordenação alfabética (A-Z, Z-A) e cronológica de cadastro;
+  - Edição de clientes cadastrados;
+  - Layout adaptado: Tabela no Desktop e Cards otimizados no Mobile.
+- **Módulo Acompanhamento Sistemático**:
+  - Dashboard operacional com contadores reais (total, em andamento, concluídas);
+  - Listagem das visitas salvas no dispositivo com status, data e executor;
+  - Modal **Nova Visita**:
+    - Seleção de Motivo (*Visita Sistemática* operacional; *Mon. Fauna* e *Mon. Flora* com indicação de etapas futuras);
+    - Repositório local de profissionais técnicos com inclusão de novos nomes na interface;
+    - Seleção pesquisável de clientes cadastrados;
+    - Campo opcional de identificação de projeto;
+    - Geração automática de código da visita ou identificação personalizada.
+- **Ferramenta de Visita Sistemática (Mapa de Satélite)**:
+  - Mapa de tela cheia com alternador entre Satélite de Alta Resolução e Mapa Vetorial;
+  - Geolocalização em tempo real com `navigator.geolocation.watchPosition`;
+  - Círculo de precisão e marcador pulsante para a posição atual;
+  - Botão de recentralização "Minha Localização";
+  - Botão flutuante ergonômico no canto inferior direito com ícone de exclamação;
+  - Modal de Registro de Campo com fixação imediata das coordenadas capturadas;
+  - Distinção clara entre **Observação** (azul) e **Ocorrência** (vermelha/laranja);
+  - Campo condicional de **Gravidade** (*Leve*, *Grave*, *Gravíssima*), obrigatório apenas para Ocorrências;
+  - **Conversão Automática para Coordenadas UTM WGS84** (Zona, Hemisfério, Easting e Northing calculados via Proj4);
+  - **Captura e Processamento de Fotografias com Carimbo Canvas**:
+    - Legenda com cabeçalho "DELTA S ENGENHARIA", data, hora, cliente/projeto e coordenadas UTM;
+    - Visualizador de miniaturas com lightbox para fotos ampliadas;
+    - Suporte a múltiplas fotos no mesmo ponto.
+  - Marcadores persistidos no mapa com clique para abertura de painel com histórico e fotos.
+
+### Funções Demonstrativas / Em Desenvolvimento
+- **Corpo Técnico, Projetos, Contratos e Financeiro**: Módulos navegáveis que apresentam telas organizadas com indicação de "Módulo em desenvolvimento" e escopo detalhado de implementação para as próximas etapas.
+- **Autenticação de Usuários**: Acesso demonstrativo nesta etapa (sem controle de sessões JWT ou senhas).
+- **Persistência**: Armazenamento estritamente local (IndexedDB no navegador), sem envio para servidores remotos.
+
+---
+
+## 8. ARMAZENAMENTO TEMPORÁRIO (INDEXEDDB)
+
+Os dados são armazenados na base `delta_cortex_local_db` do navegador, organizada em 5 Object Stores:
+1. `clientes`: Registros completos com índices por nome e documento.
+2. `profissionais`: Técnicos demonstrativos e nomes adicionados em campo.
+3. `visitas`: Visitas de acompanhamento com identificador, cliente, projeto, executor e status.
+4. `registros_campo`: Observações e ocorrências com coordenadas geográficas e UTM.
+5. `fotografias`: Imagens processadas via Canvas com carimbo gráfico incorporado.
+
+> **Aviso de Privacidade**: Os dados permanecem disponíveis após atualizar a página, desde que o navegador preserve seu armazenamento local. Por se tratar de uma versão demonstrativa local, não insira dados sensíveis ou confidenciais de clientes reais.
+
+---
+
+## 9. MODELOS DE DADOS E MIGRAÇÃO FUTURA PARA O SUPABASE
+
+A camada de serviços (`src/services/storage.ts`) foi desenvolvida seguindo o padrão **Repository**, separando a lógica de negócio dos componentes visuais. Quando for implementado o backend com Supabase/PostgreSQL, a migração envolverá apenas a substituição das chamadas do IndexedDB pelo client do `@supabase/supabase-js`, mantendo as telas e regras de negócio 100% intactas.
+
+### Mapeamento sugerido para tabelas PostgreSQL:
+- `clientes` -> `tb_clientes (id uuid, tipo_pessoa varchar, nome_razao varchar, cpf_cnpj varchar, ...)`
+- `profissionais` -> `tb_profissionais (id uuid, nome varchar, registro_prof varchar, ...)`
+- `visitas` -> `tb_visitas (id uuid, cliente_id uuid references tb_clientes, identificacao varchar, ...)`
+- `registros_campo` -> `tb_registros_campo (id uuid, visita_id uuid references tb_visitas, tipo varchar, meio varchar, geom geometry(Point, 4326), utm_easting numeric, utm_northing numeric, ...)`
+- `fotografias` -> `tb_fotografias (id uuid, registro_campo_id uuid references tb_registros_campo, storage_path text, ...)` (com envio das imagens para o Supabase Storage Bucket).
+
+---
+
+## 10. INSTRUÇÕES PARA TESTES
+
+### Teste no Computador (Desktop)
+1. Inicie a aplicação com `npm run dev` e acerte a URL `http://localhost:3000`.
+2. Visualize a tela inicial com a logo original e clique em **Login**.
+3. Acesse **Clientes**, clique em **+ Novo Cliente** e cadastre um cliente PJ (com CNPJ e dados completos).
+4. Utilize a barra de pesquisa e filtros por Estado para testar a busca e ordenação.
+5. Acesse **Acompanhamento Sistemático**, clique em **+ Nova Visita**, selecione o cliente cadastrado e clique em **Iniciar**.
+6. Autorize a permissão de localização do navegador (ou simule coordenadas no DevTools > Sensors).
+7. Clique no botão redondo flutuante com ícone de exclamação no canto inferior direito.
+8. Crie uma **Observação** (Meio Flora) e anexe uma foto: verifique a estampa Canvas indelével com a legenda oficial Delta S e coordenadas UTM.
+9. Crie uma **Ocorrência** (Meio Físico, Gravidade Grave): verifique o marcador vermelho plotado no mapa.
+10. Clique nos marcadores para inspecionar os detalhes e ampliar as fotos no lightbox.
+11. Recarregue a página (F5) e confirme que todos os dados continuam persistidos.
+
+### Teste no Celular (Dispositivo Móvel)
+1. Conecte o celular na mesma rede Wi-Fi do computador.
+2. Inicie o Next.js aceitando conexões da rede local: `npx next dev -H 0.0.0.0`.
+3. No celular, acerte o IP da máquina (ex: `http://192.168.1.XX:3000`).
+4. Autorize a câmera e o GPS no celular para vivenciar a experiência mobile-first de campo.
