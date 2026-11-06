@@ -100,13 +100,6 @@ export default function DashboardPage() {
         </section>
       </main>
 
-      {/* Rodapé Corporativo */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12 text-center text-xs text-slate-500">
-        <p className="font-semibold text-slate-700">DELTA S ENGENHARIA</p>
-        <p className="mt-1">
-          Engenharia de Geração Renovável • Licenciamento Ambiental • Monitoramentos
-        </p>
-      </footer>
     </div>
   );
 }

@@ -29,7 +29,6 @@ export default function LoginPage() {
       {/* Rodapé Corporativo */}
       <footer className="mt-8 text-center text-xs text-slate-400">
         <p>© 2026 Delta S Engenharia e Consultoria Ambiental.</p>
-        <p className="mt-1">Delta CorteX • Versão 1.0.0 (Etapa 1 — Frontend Local)</p>
       </footer>
     </main>
   );
