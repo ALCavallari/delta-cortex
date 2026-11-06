@@ -1,9 +1,7 @@
-'use client';
-
-import React from 'react';
+import { Suspense } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { LogIn, ShieldAlert } from 'lucide-react';
+import { LoginForm } from '@/components/auth/AuthForms';
+import { supabaseConfig } from '@/lib/supabase/config';
 
 export default function LoginPage() {
   return (
@@ -23,23 +21,9 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Aviso de Acesso Demonstrativo */}
-        <div className="w-full mb-8 bg-blue-50/70 border border-blue-200/80 rounded-xl p-3.5 flex items-start gap-3 text-left">
-          <ShieldAlert className="w-5 h-5 text-[#00AFF0] shrink-0 mt-0.5" />
-          <div className="text-xs text-slate-600 leading-relaxed">
-            <span className="font-semibold text-slate-800">Acesso Demonstrativo:</span>{' '}
-            Nesta primeira etapa de desenvolvimento, a autenticação direta está habilitada. Não utilize credenciais reais.
-          </div>
-        </div>
-
-        {/* Botão Principal de Login */}
-        <Link
-          href="/dashboard"
-          className="w-full inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-base"
-        >
-          <LogIn className="w-5 h-5" />
-          <span>Login</span>
-        </Link>
+        <Suspense fallback={<p role="status" className="text-sm text-slate-600">Carregando login…</p>}>
+          <LoginForm configurado={!!supabaseConfig()} />
+        </Suspense>
       </div>
 
       {/* Rodapé Corporativo */}

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { LogoutButton } from '@/components/auth/LogoutButton';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -403,6 +404,7 @@ function VisitaOperacionalContent() {
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>{finalizando ? 'Finalizando...' : visita.status === 'concluida' ? 'Concluída' : 'Finalizar Visita'}</span>
           </button>
+          <LogoutButton escuro />
         </div>
       </header>
 

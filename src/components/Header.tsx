@@ -3,6 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Home, ArrowLeft } from 'lucide-react';
 
 interface HeaderProps {
@@ -78,6 +79,7 @@ export function Header({
               <Home className="w-4 h-4 text-slate-500 group-hover:text-[#00AFF0]" />
               <span className="hidden md:inline">Menu Principal</span>
             </Link>
+            <LogoutButton />
           </div>
         </div>
 

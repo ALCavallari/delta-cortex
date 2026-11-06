@@ -57,7 +57,7 @@ Delta CorteX/
 │   └── logo-delta-s.jpg
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx           # Tela de Login demonstrativo corporativo
+│   │   ├── page.tsx           # Tela de login com Supabase Auth
 │   │   ├── dashboard/page.tsx # Menu Principal (6 Módulos Corporativos)
 │   │   ├── clientes/page.tsx  # Módulo de Gestão de Clientes (Tabela, Filtros, Busca)
 │   │   ├── acompanhamento/
@@ -127,7 +127,7 @@ NEXT_PUBLIC_MAPTILER_KEY=sua_chave_maptiler_aqui
 ## 7. ESCOPO IMPLEMENTADO VS. DEMONSTRATIVO (ETAPA 1)
 
 ### Funções 100% Implementadas e Funcionais
-- **Login Demonstrativo**: Acesso direto com um clique, apresentando a marca Delta S original e aviso claro sobre a versão preliminar.
+- **Login**: Acesso com e-mail e senha pelo Supabase Auth, com sessão validada no servidor.
 - **Menu Principal**: Navegação completa entre os 6 módulos do Delta CorteX com identidade visual coesa.
 - **Módulo Clientes**:
   - Cadastro completo de Pessoa Física e Jurídica;
@@ -166,7 +166,6 @@ NEXT_PUBLIC_MAPTILER_KEY=sua_chave_maptiler_aqui
 
 ### Funções Demonstrativas / Em Desenvolvimento
 - **Corpo Técnico, Projetos, Contratos e Financeiro**: Módulos navegáveis que apresentam telas organizadas com indicação de "Módulo em desenvolvimento" e escopo detalhado de implementação para as próximas etapas.
-- **Autenticação de Usuários**: Acesso demonstrativo nesta etapa (sem controle de sessões JWT ou senhas).
 - **Persistência**: Armazenamento estritamente local (IndexedDB no navegador), sem envio para servidores remotos.
 
 ---
@@ -201,7 +200,7 @@ A camada de serviços (`src/services/storage.ts`) foi desenvolvida seguindo o pa
 
 ### Teste no Computador (Desktop)
 1. Inicie a aplicação com `npm run dev` e acerte a URL `http://localhost:3000`.
-2. Visualize a tela inicial com a logo original e clique em **Login**.
+2. Na tela inicial, informe o e-mail e a senha de uma conta provisionada no Supabase e clique em **Entrar**.
 3. Acesse **Clientes**, clique em **+ Novo Cliente** e cadastre um cliente PJ (com CNPJ e dados completos).
 4. Utilize a barra de pesquisa e filtros por Estado para testar a busca e ordenação.
 5. Acesse **Acompanhamento Sistemático**, clique em **+ Nova Visita**, selecione o cliente cadastrado e clique em **Iniciar**.
@@ -217,3 +216,14 @@ A camada de serviços (`src/services/storage.ts`) foi desenvolvida seguindo o pa
 2. Inicie o Next.js aceitando conexões da rede local: `npx next dev -H 0.0.0.0`.
 3. No celular, acerte o IP da máquina (ex: `http://192.168.1.XX:3000`).
 4. Autorize a câmera e o GPS no celular para vivenciar a experiência mobile-first de campo.
+
+## Autenticação Supabase
+
+Configure estas variáveis no arquivo local `.env.local` ou `.env` ignorado pelo Git e nos ambientes correspondentes da Vercel:
+
+- `NEXT_PUBLIC_SUPABASE_URL` — URL do projeto Supabase.
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — chave publicável do mesmo projeto.
+
+No Supabase Auth, mantenha o cadastro público desativado e provisione as contas autorizadas. Confira se as URLs de redirecionamento incluem `https://delta-cortex.vercel.app/auth/callback` e o endereço local usado no desenvolvimento, por exemplo `http://127.0.0.1:3000/auth/callback`. Com o modelo padrão de e-mail e PKCE, abra o link no mesmo navegador que solicitou a recuperação. Se houver um modelo personalizado, o callback aceita também o token de recuperação no formato `token_hash` com `type=recovery`. Configure SMTP no Supabase se necessário para o envio aos usuários.
+
+O login protege a entrada da aplicação. Os cadastros continuam no IndexedDB, por navegador e origem, compartilhados entre contas que usam o mesmo perfil de navegador.
