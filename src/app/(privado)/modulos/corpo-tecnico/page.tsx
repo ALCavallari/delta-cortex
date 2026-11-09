@@ -14,7 +14,7 @@ import type { Profissional } from '@/types';
 
 type Modal = { tipo: 'novo' } | { tipo: 'editar' | 'detalhes' | 'excluir'; tecnico: Profissional };
 const controle = 'min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm';
-const colunas = ['Nome Completo', 'CPF', 'Contato', 'E-mail', 'Habilitado', 'Placa do Veículo', 'Ações'];
+const colunas = ['Nome Completo', 'CPF', 'Contato', 'E-mail', 'Atribuição', 'Placa do Veículo', 'Ações'];
 
 export default function CorpoTecnicoPage() {
   const [tecnicos, setTecnicos] = useState<Profissional[]>([]);
@@ -82,8 +82,6 @@ export default function CorpoTecnicoPage() {
         <BotaoAcaoCadastro acao="excluir" rotulo={`Excluir ${p.nome}`} onClick={() => abrir({ tipo: 'excluir', tecnico: p })} />
     </div>;
   }
-  const situacao = (p: Profissional) => <span className={`rounded-full px-2 py-1 text-xs font-semibold ${p.habilitado ? 'bg-lime-50 text-lime-800' : 'bg-slate-100 text-slate-700'}`}
-    title={p.habilitado === undefined ? 'Cadastro antigo sem habilitação definida' : undefined}>{p.habilitado ? 'Sim' : 'Não'}</span>;
   const contato = (p: Profissional) => <div className="flex flex-wrap items-center gap-2">{p.contato || '—'} <WhatsAppTecnico telefone={p.contato} /></div>;
 
   return <div className="min-h-screen bg-slate-50">
@@ -127,7 +125,7 @@ export default function CorpoTecnicoPage() {
               <tbody className="divide-y divide-slate-100">{filtrados.map(p => <tr key={p.id}>
                 <th scope="row" className="break-words p-3 font-semibold">{p.nome}</th><td className="p-3">{p.cpf || '—'}</td>
                 <td className="p-3">{contato(p)}</td><td className="max-w-48 break-all p-3">{p.email || '—'}</td>
-                <td className="p-3">{situacao(p)}</td><td className="p-3">{p.placaVeiculo || '—'}</td><td className="p-3">{acoes(p)}</td>
+                <td className="p-3">{p.atribuicao || '—'}</td><td className="p-3">{p.placaVeiculo || '—'}</td><td className="p-3">{acoes(p)}</td>
               </tr>)}</tbody>
             </table>
           </div>
@@ -135,7 +133,7 @@ export default function CorpoTecnicoPage() {
             <h2 className="break-words font-bold text-[#333436]">{p.nome}</h2>
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
               <dt>CPF</dt><dd>{p.cpf || '—'}</dd><dt>Contato</dt><dd>{contato(p)}</dd>
-              <dt>E-mail</dt><dd className="break-all">{p.email || '—'}</dd><dt>Habilitado</dt><dd>{situacao(p)}</dd>
+              <dt>E-mail</dt><dd className="break-all">{p.email || '—'}</dd><dt>Atribuição</dt><dd>{p.atribuicao || '—'}</dd>
               <dt>Placa</dt><dd>{p.placaVeiculo || '—'}</dd>
             </dl>
             {acoes(p)}

@@ -282,24 +282,40 @@ export function ClientModal({
               )}
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                {tipoPessoa === 'PF' ? 'CPF *' : 'CNPJ *'}
-              </label>
-              <input
-                type="text"
-                value={cpfCnpj}
-                onChange={handleCpfCnpjChange}
-                placeholder={tipoPessoa === 'PF' ? '000.000.000-00' : '00.000.000/0000-00'}
-                maxLength={tipoPessoa === 'PF' ? 14 : 18}
-                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-mono focus:outline-hidden focus:ring-2 transition-all ${
-                  erros.cpfCnpj
-                    ? 'border-red-400 focus:ring-red-200 bg-red-50/20'
-                    : 'border-slate-300 focus:border-[#00AFF0] focus:ring-blue-100'
-                }`}
-              />
-              {erros.cpfCnpj && (
-                <p className="mt-1 text-xs text-red-500 font-medium">{erros.cpfCnpj}</p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  {tipoPessoa === 'PF' ? 'CPF *' : 'CNPJ *'}
+                </label>
+                <input
+                  type="text"
+                  value={cpfCnpj}
+                  onChange={handleCpfCnpjChange}
+                  placeholder={tipoPessoa === 'PF' ? '000.000.000-00' : '00.000.000/0000-00'}
+                  maxLength={tipoPessoa === 'PF' ? 14 : 18}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-mono focus:outline-hidden focus:ring-2 transition-all ${
+                    erros.cpfCnpj
+                      ? 'border-red-400 focus:ring-red-200 bg-red-50/20'
+                      : 'border-slate-300 focus:border-[#00AFF0] focus:ring-blue-100'
+                  }`}
+                />
+                {erros.cpfCnpj && (
+                  <p className="mt-1 text-xs text-red-500 font-medium">{erros.cpfCnpj}</p>
+                )}
+              </div>
+              {tipoPessoa === 'PJ' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Inscrição Estadual <span className="text-slate-400 font-normal">(Se houver)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={inscricaoEstadual}
+                    onChange={(e) => setInscricaoEstadual(e.target.value)}
+                    placeholder="Ex: Isento ou 123.456.789"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:border-[#00AFF0] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -423,27 +439,13 @@ export function ClientModal({
             </div>
           </div>
 
-          {/* Inscrição Estadual (Apenas PJ) e Contato */}
+          {/* Contato */}
           <div className="pt-2 border-t border-slate-100">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
               Contato e Responsável
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              {tipoPessoa === 'PJ' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Inscrição Estadual <span className="text-slate-400 font-normal">(Se houver)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={inscricaoEstadual}
-                    onChange={(e) => setInscricaoEstadual(e.target.value)}
-                    placeholder="Ex: Isento ou 123.456.789"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:border-[#00AFF0] focus:ring-2 focus:ring-blue-100"
-                  />
-                </div>
-              )}
 
               <div className={tipoPessoa === 'PF' ? 'sm:col-span-1' : ''}>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">

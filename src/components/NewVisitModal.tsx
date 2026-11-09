@@ -63,7 +63,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
         setCarregandoDados(true);
         const [clis, profs, projs, visitasExistentes] = await Promise.all([
           ClienteRepository.listar(),
-          ProfissionalRepository.listarHabilitados(),
+          ProfissionalRepository.listarAtivos(),
           ProjetoRepository.listar(),
           VisitaRepository.listar(),
         ]);

@@ -22,6 +22,8 @@ export interface Cliente {
   deletedAt?: string | null;
 }
 
+export type AtribuicaoProfissional = 'Fauna' | 'Flora' | 'Operação' | 'Projeto' | 'Socioeconomia' | 'Topografia';
+
 export interface Profissional {
   id: string;
   nome: string;
@@ -34,7 +36,7 @@ export interface Profissional {
   contato?: string;
   email?: string;
   endereco?: string;
-  habilitado?: boolean;
+  atribuicao?: AtribuicaoProfissional;
   placaVeiculo?: string;
   chavePix?: string;
   banco?: string;
@@ -104,7 +106,7 @@ export interface CoordenadasUTM {
   hemisferio: 'N' | 'S';
   easting: number;
   northing: number;
-  referenciaGeodesica: string; // 'WGS84'
+  referenciaGeodesica: string;
   formatado: string;
 }
 

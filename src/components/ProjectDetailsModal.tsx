@@ -123,8 +123,8 @@ export function ProjectDetailsModal({
               <p>E: {projeto.localizacao.easting.toLocaleString('pt-BR')} m • N: {projeto.localizacao.northing.toLocaleString('pt-BR')} m</p>
               <p>Fuso {projeto.localizacao.zona} • {projeto.localizacao.hemisferio === 'S' ? 'Sul' : 'Norte'} • {projeto.localizacao.datum}</p>
               <p>Latitude: {projeto.localizacao.latitude.toFixed(7)} • Longitude: {projeto.localizacao.longitude.toFixed(7)}</p>
-            </div> : <p className="text-xs text-slate-500">Localização não informada.</p>}
-            <ProjectLocationLink localizacao={projeto.localizacao} />
+            </div> : <p className="text-xs text-slate-500">Coordenadas não cadastradas.</p>}
+            <ProjectLocationLink localizacao={projeto.localizacao} linkOriginal={projeto.linkGoogleMapsOriginal} />
           </section>
           {/* Metadados */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs text-slate-600 bg-slate-50/60 p-3.5 rounded-xl border border-slate-200">

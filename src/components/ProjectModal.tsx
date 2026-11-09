@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { lerLinkGoogleMaps } from '@/services/googleMaps';
 import { ProjectGeographicFiles, type ArquivosGeograficosDraft } from './ProjectGeographicFiles';
-import { ProjectLocationFields, locationDraft, resolveLocation } from './ProjectLocationFields';
+import { ProjectLocationFields, coordenadasDoPonto, locationDraft, resolveLocation } from './ProjectLocationFields';
 import {
   X,
   FolderKanban,
@@ -37,6 +37,7 @@ export function ProjectModal({
   const [descricao, setDescricao] = useState('');
   const [prazo, setPrazo] = useState('');
   const [linkMaps, setLinkMaps] = useState('');
+  const [linkVerificado, setLinkVerificado] = useState('');
   const arquivosGeograficos = useRef<ArquivosGeograficosDraft>(null);
   const [localizacao, setLocalizacao] = useState(() => locationDraft());
 
@@ -50,6 +51,7 @@ export function ProjectModal({
   const [qtdVisitasVinculadas, setQtdVisitasVinculadas] = useState(0);
 
   const isEdit = !!projectToEdit;
+  const consultandoLink = lerLinkGoogleMaps(linkMaps)?.tipo === 'encurtado' && linkVerificado !== linkMaps;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -67,8 +69,13 @@ export function ProjectModal({
     }
 
     setPrazo(projectToEdit?.prazo ?? '');
-    setLinkMaps(projectToEdit?.linkGoogleMapsOriginal ?? '');
-    setLocalizacao(locationDraft(projectToEdit?.localizacao));
+    const linkOriginal = projectToEdit?.linkGoogleMapsOriginal ?? '';
+    const ponto = lerLinkGoogleMaps(linkOriginal);
+    const coordenadas = !projectToEdit?.localizacao && ponto?.tipo === 'ponto'
+      ? coordenadasDoPonto(ponto.latitude, ponto.longitude) : undefined;
+    setLinkMaps(linkOriginal);
+    setLinkVerificado('');
+    setLocalizacao(coordenadas ?? locationDraft(projectToEdit?.localizacao));
     setErros({});
     setErroGeral(null);
     setConfirmacaoClienteAberta(false);
@@ -143,7 +150,7 @@ export function ProjectModal({
     e.preventDefault();
     setErroGeral(null);
 
-    if (!validar()) return;
+    if (consultandoLink || !validar()) return;
 
     // Se estiver editando e o clienteId tiver sido alterado, verificar visitas existentes
     if (isEdit && projectToEdit && projectToEdit.clienteId !== clienteId) {
@@ -321,7 +328,8 @@ export function ProjectModal({
               <span className="mt-1 block font-normal text-slate-500">{prazo ? prazo.split('-').reverse().join('/') : 'DD/MM/AAAA'}</span>
             </label>
             <ProjectLocationFields value={localizacao} onChange={setLocalizacao} link={linkMaps}
-              onLinkChange={link => { setLinkMaps(link); setErros(prev => ({ ...prev, linkMaps: '' })); }} />
+              onLinkResolved={setLinkVerificado}
+              onLinkChange={link => { setLinkMaps(link); setLinkVerificado(''); setErros(prev => ({ ...prev, linkMaps: '' })); }} />
             {erros.linkMaps && <p role="alert" className="text-xs text-red-600">{erros.linkMaps}</p>}
             {erros.localizacao && <p role="alert" className="text-xs text-red-600">{erros.localizacao}</p>}
             <ProjectGeographicFiles ref={arquivosGeograficos} key={projectToEdit?.id ?? 'novo'}
@@ -338,7 +346,7 @@ export function ProjectModal({
               </button>
               <button
                 type="submit"
-                disabled={salvando || (clientes.length === 0 && !projectToEdit?.clienteId)}
+                disabled={salvando || consultandoLink || (clientes.length === 0 && !projectToEdit?.clienteId)}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-sm disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />

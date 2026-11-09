@@ -1,4 +1,5 @@
 'use client';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { LocalizacaoProjeto } from '@/types';
 import { lerLinkGoogleMaps } from '@/services/googleMaps';
 import { converterParaUTM, converterUTMParaGeografica, lerMetrosBR } from '@/services/utm';
@@ -14,25 +15,60 @@ export function resolveLocation(d: LocationDraft): LocalizacaoProjeto | undefine
   const easting = lerMetrosBR(d.e), northing = lerMetrosBR(d.n), zona = Number(d.zona);
   return {easting, northing, zona, hemisferio: d.hemisferio, datum: d.datum, ...converterUTMParaGeografica(easting, northing, zona, d.hemisferio, d.datum)};
 }
-export function ProjectLocationFields({value, onChange, link, onLinkChange}: {
+
+export function coordenadasDoPonto(latitude: number, longitude: number) {
+  if (latitude < -80 || latitude > 84) return undefined;
+  const utm = converterParaUTM(latitude, longitude, false, 'SIRGAS 2000');
+  return locationDraft({ ...utm, datum: 'SIRGAS 2000', latitude, longitude });
+}
+
+export function ProjectLocationFields({value, onChange, link, onLinkChange, onLinkResolved}: {
   value: LocationDraft;
-  onChange: (d: LocationDraft) => void;
+  onChange: Dispatch<SetStateAction<LocationDraft>>;
   link: string;
   onLinkChange: (link: string) => void;
+  onLinkResolved: (link: string) => void;
 }) {
   let loc: LocalizacaoProjeto | undefined, erro = '';
   try { loc = resolveLocation(value); } catch (e) { erro = (e as Error).message; }
-  const parsed = lerLinkGoogleMaps(link);
+  const [resolvido, setResolvido] = useState<{ link: string; resultado: ReturnType<typeof lerLinkGoogleMaps> }>();
+  const original = lerLinkGoogleMaps(link);
+  const pendente = original?.tipo === 'encurtado' && resolvido?.link !== link;
+  const parsed = original?.tipo === 'encurtado' && resolvido?.link === link ? resolvido.resultado : original;
   const point = parsed && 'latitude' in parsed ? parsed : null;
   const outsideUTM = point && (point.latitude < -80 || point.latitude > 84);
   const matches = point && loc && Math.abs(loc.latitude - point.latitude) < 1e-7 &&
     Math.abs(((loc.longitude - point.longitude + 540) % 360) - 180) < 1e-7;
 
   function preencher(latitude: number, longitude: number) {
-    if (latitude < -80 || latitude > 84) return;
-    const utm = converterParaUTM(latitude, longitude, false);
-    onChange(locationDraft({ ...utm, datum: 'WGS84', latitude, longitude }));
+    const draft = coordenadasDoPonto(latitude, longitude);
+    if (draft) onChange(draft);
   }
+
+  useEffect(() => {
+    const direto = lerLinkGoogleMaps(link);
+    if (direto?.tipo !== 'encurtado') return;
+    function usarResultado(resultado: ReturnType<typeof lerLinkGoogleMaps>) {
+      if (resultado?.tipo !== 'ponto') return;
+      const draft = coordenadasDoPonto(resultado.latitude, resultado.longitude);
+      if (draft) onChange(atual => atual.e || atual.n || atual.zona ? atual : draft);
+    }
+    const controle = new AbortController();
+    const espera = setTimeout(() => {
+      void fetch(`/api/google-maps?${new URLSearchParams({ link })}`, { signal: controle.signal })
+        .then(async resposta => resposta.ok ? await resposta.json() as ReturnType<typeof lerLinkGoogleMaps> : null)
+        .then(resultado => {
+          if (controle.signal.aborted) return;
+          setResolvido({ link, resultado: resultado ?? { tipo: 'sem-coordenadas' } });
+          usarResultado(resultado);
+        }).catch(() => {
+          if (!controle.signal.aborted) setResolvido({ link, resultado: { tipo: 'sem-coordenadas' } });
+        }).finally(() => {
+          if (!controle.signal.aborted) onLinkResolved(link);
+        });
+    }, 250);
+    return () => { clearTimeout(espera); controle.abort(); };
+  }, [link, onChange, onLinkResolved]);
 
   const cls = 'mt-1 w-full border border-slate-300 rounded-xl p-2.5 bg-white';
   return <section className="space-y-3 border-t border-slate-200 pt-4">
@@ -51,14 +87,14 @@ export function ProjectLocationFields({value, onChange, link, onLinkChange}: {
     </label>
     <p id="projeto-maps-orientacao" className="text-xs text-slate-500">Cole um link do Google Maps para preencher automaticamente as coordenadas do projeto.</p>
     {link.trim() && <div role="status" className="text-xs text-slate-600">
-      {!parsed ? 'Informe um link HTTPS válido do Google Maps.' :
+      {pendente ? 'Identificando as coordenadas do link curto…' :
+        !parsed ? 'Informe um link HTTPS válido do Google Maps.' :
         !point ? 'Não foi possível identificar automaticamente as coordenadas neste link. Tente copiar o endereço completo do Google Maps ou informe as coordenadas manualmente.' :
         outsideUTM ? 'O ponto está fora da faixa de latitudes do sistema UTM.' :
         matches ? 'Coordenadas do link identificadas.' :
-        point.tipo === 'ponto' ? 'A localização atual difere das coordenadas do link original.' :
         <>
-          <p>O link informa o centro da visualização. Confirme se este é o ponto do projeto: {point.latitude}, {point.longitude}.</p>
-          {loc && <p>A localização atual é diferente do centro informado no link original.</p>}
+          <p>{point.tipo === 'visualizacao' ? 'O link informa o centro da visualização. Confirme se este é o ponto do projeto' :
+            'O link informa um ponto diferente da localização atual'}: {point.latitude}, {point.longitude}.</p>
           <button type="button" className="mt-2 rounded-lg border border-slate-300 px-3 py-2 font-semibold"
             onClick={() => preencher(point.latitude, point.longitude)}>Usar este ponto</button>
         </>}
@@ -72,6 +108,6 @@ export function ProjectLocationFields({value, onChange, link, onLinkChange}: {
       <label className="text-xs font-semibold">Sistema de Referência (Datum)<select value={value.datum} onChange={e => onChange({...value, datum: e.target.value as LocationDraft['datum']})} className={cls}><option>SIRGAS 2000</option><option>WGS84</option></select></label>
     </div>
     {erro && <p role="alert" className="text-xs text-red-600">{erro}</p>}
-    <ProjectLocationLink localizacao={loc} />
+    <ProjectLocationLink localizacao={loc} linkOriginal={link} />
   </section>;
 }

@@ -13,7 +13,7 @@ O **Delta CorteX** é o sistema corporativo central da **Delta S Engenharia**, e
 Prover aos engenheiros, biólogos, gestores, técnicos de campo e consultores ambientais uma plataforma ágil, responsiva e de alta precisão para:
 - Cadastro e gestão unificada de **Clientes** e empreendedores;
 - Planejamento e execução de **Visitas de Acompanhamento Sistemático** de campo;
-- Levantamento georreferenciado em tempo real com conversão geodésica para **Coordenadas UTM WGS84**;
+- Levantamento georreferenciado em tempo real com conversão geodésica para **coordenadas UTM SIRGAS 2000**;
 - Registro padronizado de **Observações** e **Ocorrências** (classificadas por gravidade e meio ambiental: Fauna, Flora, Físico e Social);
 - Captura de **Fotografias de Campo com Estampa Indelével via Canvas** (incorporando a marca Delta S, data, hora, cliente/projeto e coordenadas UTM na própria imagem);
 - Visualização cartográfica e de imagens de satélite de alta resolução com plotagem de marcadores georreferenciados.
@@ -144,7 +144,7 @@ NEXT_PUBLIC_MAPTILER_KEY=sua_chave_maptiler_aqui
   - Listagem das visitas com status, data e executor;
   - Modal **Novo Trabalho de Campo**:
     - Seleção de Motivo (*Visita Sistemática* operacional; *Mon. Fauna* e *Mon. Flora* com indicação de etapas futuras);
-    - Seleção do executor e do responsável técnico habilitados;
+    - Seleção do executor e do responsável técnico entre os profissionais não excluídos;
     - Seleção pesquisável de projetos e identificação do contratante;
     - Geração automática de código da visita ou identificação personalizada.
 - **Ferramenta de Visita Sistemática (Mapa de Satélite)**:
@@ -156,7 +156,7 @@ NEXT_PUBLIC_MAPTILER_KEY=sua_chave_maptiler_aqui
   - Modal de Registro de Campo com fixação imediata das coordenadas capturadas;
   - Distinção clara entre **Observação** (azul) e **Ocorrência** (vermelha/laranja);
   - Campo condicional de **Gravidade** (*Leve*, *Grave*, *Gravíssima*), obrigatório apenas para Ocorrências;
-  - **Conversão Automática para Coordenadas UTM WGS84** (Zona, Hemisfério, Easting e Northing calculados via Proj4);
+  - **Conversão automática para coordenadas UTM SIRGAS 2000** (zona, hemisfério, Easting e Northing calculados via Proj4);
   - **Captura e Processamento de Fotografias com Carimbo Canvas**:
     - Legenda com cabeçalho "DELTA S ENGENHARIA", data, hora, cliente/projeto e coordenadas UTM;
     - Visualizador de miniaturas com lightbox para fotos ampliadas;

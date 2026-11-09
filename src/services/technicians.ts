@@ -22,5 +22,5 @@ export function mascaraContato(contato: string): string {
   return formatarTelefone(digitos);
 }
 
-export const SEM_TECNICOS = 'Nenhum técnico habilitado cadastrado. Cadastre ou habilite um profissional no módulo Corpo Técnico.';
+export const SEM_TECNICOS = 'Nenhum profissional disponível. Cadastre um profissional no módulo Corpo Técnico.';
 export const CORPO_TECNICO = '/modulos/corpo-tecnico';

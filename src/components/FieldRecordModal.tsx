@@ -83,7 +83,7 @@ export function FieldRecordModal({
 
       if (capturedLat !== null && capturedLng !== null) {
         try {
-          const utm = converterParaUTM(capturedLat, capturedLng);
+          const utm = converterParaUTM(capturedLat, capturedLng, false, 'SIRGAS 2000');
           setUtmEstavel(utm);
         } catch (e) {
           console.error('Erro na conversão UTM:', e);
@@ -152,7 +152,7 @@ export function FieldRecordModal({
           visitaId: visita.id,
           dataUrl: dataUrlEstampada,
           capturadaEm: dataHoraFoto.toISOString(),
-          utmInfo: utmEstavel.formatado,
+          utmInfo: `UTM ${utmEstavel.referenciaGeodesica} · ${utmEstavel.formatado}`,
           clienteProjetoInfo: clienteProjetoStr,
         };
 
@@ -242,7 +242,7 @@ export function FieldRecordModal({
         utmHemisferio: utmEstavel!.hemisferio,
         utmEasting: utmEstavel!.easting,
         utmNorthing: utmEstavel!.northing,
-        referenciaGeodesica: 'WGS84',
+        referenciaGeodesica: utmEstavel!.referenciaGeodesica,
         registradoEm: agora,
         fotos: fotosVinculadas,
       };
@@ -319,13 +319,13 @@ export function FieldRecordModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-slate-700">
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-sans">
-                      UTM (WGS84)
+                      UTM ({utmEstavel.referenciaGeodesica})
                     </span>
                     <span className="font-bold text-[#333436]">
                       Zona {utmEstavel.zona}{utmEstavel.hemisferio}
                     </span>{' '}
-                    • E: {utmEstavel.easting.toLocaleString('pt-BR')} m | N:{' '}
-                    {utmEstavel.northing.toLocaleString('pt-BR')} m
+                    • E: {utmEstavel.easting.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m | N:{' '}
+                    {utmEstavel.northing.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-sans">

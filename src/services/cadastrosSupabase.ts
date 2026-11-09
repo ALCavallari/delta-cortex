@@ -81,31 +81,31 @@ export const ProjetoSupabaseRepository = {
 type LinhaProfissional = {
   id: string; nome: string; origem_temporaria: boolean; cargo: string | null;
   registro_profissional: string | null; rg: string | null; cpf: string | null; cnpj: string | null;
-  contato: string | null; email: string | null; endereco: string | null; habilitado: boolean;
+  contato: string | null; email: string | null; endereco: string | null; atribuicao: Profissional['atribuicao'] | null;
   placa_veiculo: string | null; criado_em: string; atualizado_em: string; excluido_em: string | null;
 };
 
-const colunasTecnico = 'id,nome,origem_temporaria,cargo,registro_profissional,rg,cpf,cnpj,contato,email,endereco,habilitado,placa_veiculo,criado_em,atualizado_em,excluido_em';
+const colunasTecnico = 'id,nome,origem_temporaria,cargo,registro_profissional,rg,cpf,cnpj,contato,email,endereco,atribuicao,placa_veiculo,criado_em,atualizado_em,excluido_em';
 
 function profissionalDaLinha(r: LinhaProfissional): Profissional {
   return {
     id: r.id, nome: r.nome, origemTemporaria: r.origem_temporaria, cargo: r.cargo ?? undefined,
     registroProfissional: r.registro_profissional ?? undefined, rg: r.rg ?? undefined, cpf: r.cpf ?? undefined,
     cnpj: r.cnpj ?? undefined, contato: r.contato ?? undefined, email: r.email ?? undefined,
-    endereco: r.endereco ?? undefined, habilitado: r.habilitado, placaVeiculo: r.placa_veiculo ?? undefined,
+    endereco: r.endereco ?? undefined, atribuicao: r.atribuicao ?? undefined, placaVeiculo: r.placa_veiculo ?? undefined,
     criadoEm: r.criado_em, atualizadoEm: r.atualizado_em, deletedAt: r.excluido_em,
   };
 }
 
 type LinhaBanco = { profissional_id: string; chave_pix: string | null; banco: string | null; agencia: string | null; conta_corrente: string | null };
 
-async function listarProfissionais(habilitados: boolean, incluirDadosBancarios = false) {
+async function listarProfissionais(ativos: boolean, incluirDadosBancarios = false) {
   const perfil = await ClienteSupabaseRepository.obterAcesso();
   const banco = bancoOperacional();
   const linhas = await listarPaginas<LinhaProfissional>(id => {
     let consulta = banco.from('profissionais').select(colunasTecnico).order('id').limit(500);
     if (id) consulta = consulta.gt('id', id);
-    if (habilitados) consulta = consulta.is('excluido_em', null).eq('habilitado', true);
+    if (ativos) consulta = consulta.is('excluido_em', null);
     return consulta.returns<LinhaProfissional[]>();
   }, 'listar profissionais');
   const profissionais = linhas.map(profissionalDaLinha).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
@@ -128,7 +128,7 @@ async function listarProfissionais(habilitados: boolean, incluirDadosBancarios =
 export const ProfissionalSupabaseRepository = {
   listar: () => listarProfissionais(false),
   listarComDadosBancarios: () => listarProfissionais(false, true),
-  listarHabilitados: () => listarProfissionais(true),
+  listarAtivos: () => listarProfissionais(true),
   async salvar(p: Profissional, original?: Profissional) {
     const perfil = await ClienteSupabaseRepository.obterAcesso();
     const bancarios = perfil === 'admin'
@@ -140,7 +140,7 @@ export const ProfissionalSupabaseRepository = {
         id: p.id, nome: p.nome, origem_temporaria: p.origemTemporaria, cargo: p.cargo ?? null,
         registro_profissional: p.registroProfissional ?? null, rg: p.rg ?? null, cpf: p.cpf ?? null, cnpj: p.cnpj ?? null,
         contato: p.contato ?? null, email: p.email ?? null, endereco: p.endereco ?? null,
-        habilitado: p.habilitado ?? false, placa_veiculo: p.placaVeiculo ?? null,
+        atribuicao: p.atribuicao ?? null, placa_veiculo: p.placaVeiculo ?? null,
       },
       p_bancarios: bancarios,
     }), 'salvar o profissional') as unknown as LinhaProfissional;

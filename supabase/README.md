@@ -11,11 +11,15 @@ Projeto de destino `znbfnayblyclavcjsbvg`. O DDL inicial fornecido serve como re
 ## Fonte dos dados e integridade
 
 - Clientes, Projetos, Corpo Técnico, Trabalho de Campo e mapas consultam o Supabase. Uma falha remota é reportada pela interface. O IndexedDB é acessado exclusivamente pelo painel de legado.
-- Projetos vinculam o contratante de `public.clientes`. Visitas exigem projeto ativo e profissionais habilitados e gravam os nomes históricos. Os dados bancários ficam na tabela separada e as telas de campo consultam apenas os dados operacionais.
+- Projetos vinculam o contratante de `public.clientes`. Visitas exigem projeto ativo e profissionais não excluídos e gravam os nomes históricos. Os dados bancários ficam na tabela separada e as telas de campo consultam apenas os dados operacionais.
 - Observações pertencem à visita de origem. Ocorrências pertencem também ao projeto, e eventos de resolução ou reabertura exigem uma visita do mesmo projeto. A mudança de situação e seu evento são gravados juntos, com rejeição da versão desatualizada. As tabelas de visita, registros e eventos são específicas de Visita Sistemática e permitem que levantamentos futuros tenham seus próprios modelos.
 - KMZ/KML ficam em `delta-cortex-geograficos`. Fotografias carimbadas e PDFs ficam em `delta-cortex-visitas-sistematicas`. Os dois buckets são privados. A referência permanente é bucket/caminho, e a leitura é feita com download autenticado. PDFs recebem identificadores próprios por versão.
 - O navegador processa e valida KMZ/KML antes de enviar. Arquivos acima de 6 MiB usam TUS. O banco confirma os metadados somente após verificar o objeto. Projeto e metadados, registro e fotografias, e relatório e atividades usam transações PostgreSQL. O upload e o banco são sistemas distintos. Após uma falha, a aplicação tenta remover apenas os objetos ainda sem referência. Uma interrupção pode deixar um objeto pendente, que deve ser revisado com os metadados antes de qualquer remoção administrativa.
 - RLS concede leitura a membros ativos e gravação operacional a admin/editor. A função que altera a situação valida o papel e a versão antes de atualizar. O compartilhamento continua por envio deliberado de uma cópia do PDF, sem URL pública permanente.
+
+## Atualização de Corpo Técnico
+
+Em instalações que já receberam a centralização, aplique a [migration de atribuições](migrations/20261109151417_atribuicao_profissionais.sql) antes de publicar esta versão. Ela acrescenta a atribuição opcional e atualiza a criação de visitas para aceitar profissionais não excluídos, independentemente do valor histórico de `habilitado`.
 
 ## Backup e limpeza seletiva
 

@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { Copy, MapPin } from 'lucide-react';
 import { LocalizacaoProjeto } from '@/types';
 import { linkGoogleMaps } from '@/services/utm';
+import { lerLinkGoogleMaps } from '@/services/googleMaps';
 
-export function ProjectLocationLink({ localizacao }: { localizacao?: LocalizacaoProjeto }) {
+export function ProjectLocationLink({ localizacao, linkOriginal }: { localizacao?: LocalizacaoProjeto; linkOriginal?: string }) {
   const [mensagem, setMensagem] = useState('');
-  const url = localizacao ? linkGoogleMaps(localizacao.latitude, localizacao.longitude) : '';
+  const url = localizacao ? linkGoogleMaps(localizacao.latitude, localizacao.longitude)
+    : linkOriginal && lerLinkGoogleMaps(linkOriginal) ? linkOriginal.trim() : '';
   return <div className="space-y-2 text-sm">
     <h4 className="font-semibold text-[#333436]">Localização no Google Maps</h4>
     <div className="flex flex-wrap gap-2">
@@ -17,7 +19,7 @@ export function ProjectLocationLink({ localizacao }: { localizacao?: Localizacao
         catch { setMensagem('Não foi possível copiar o link.'); }
       }}><Copy size={16} /></button>
     </div>
-    {!url && <p className="text-xs text-slate-500">Preencha uma localização UTM completa e válida para abrir o mapa.</p>}
+    {!url && <p className="text-xs text-slate-500">Informe um link válido do Google Maps ou preencha a localização UTM.</p>}
     <p role="status" className="text-xs text-slate-500">{mensagem}</p>
   </div>;
 }

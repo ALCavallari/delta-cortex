@@ -1,14 +1,19 @@
 import proj4 from 'proj4';
-import { CoordenadasUTM } from '@/types';
+import { CoordenadasUTM, LocalizacaoProjeto } from '@/types';
 
 // WGS84 geographic system
 const WGS84_GEO = '+proj=longlat +datum=WGS84 +no_defs';
+
+function definicaoUTM(zona: number, hemisferio: 'N' | 'S', datum: LocalizacaoProjeto['datum']) {
+  const referencia = datum === 'SIRGAS 2000' ? '+ellps=GRS80 +towgs84=0,0,0' : '+datum=WGS84';
+  return `+proj=utm +zone=${zona} ${hemisferio === 'S' ? '+south' : ''} ${referencia} +units=m +no_defs`;
+}
 
 /**
  * Converte coordenadas geográficas decimais (WGS84) para coordenadas UTM (Universal Transverse Mercator).
  * Calcula automaticamente o Fuso/Zona UTM e o Hemisfério.
  */
-export function converterParaUTM(latitude: number, longitude: number, arredondar = true): CoordenadasUTM {
+export function converterParaUTM(latitude: number, longitude: number, arredondar = true, datum: LocalizacaoProjeto['datum'] = 'WGS84'): CoordenadasUTM {
   if (
     latitude === undefined ||
     latitude === null ||
@@ -25,7 +30,7 @@ export function converterParaUTM(latitude: number, longitude: number, arredondar
   const hemisferio: 'N' | 'S' = latitude >= 0 ? 'N' : 'S';
 
   // Definição proj4 para a zona UTM correspondente
-  const utmDef = `+proj=utm +zone=${zona} ${hemisferio === 'S' ? '+south' : ''} +datum=WGS84 +units=m +no_defs`;
+  const utmDef = definicaoUTM(zona, hemisferio, datum);
 
   // proj4 aceita [longitude, latitude] e retorna [easting, northing]
   const [easting, northing] = proj4(WGS84_GEO, utmDef, [longitude, latitude]);
@@ -40,7 +45,7 @@ export function converterParaUTM(latitude: number, longitude: number, arredondar
     hemisferio,
     easting: arredondar ? eastingFormatado : easting,
     northing: arredondar ? northingFormatado : northing,
-    referenciaGeodesica: 'WGS84',
+    referenciaGeodesica: datum,
     formatado,
   };
 }
@@ -67,8 +72,7 @@ export function converterUTMParaGeografica(easting: number, northing: number, zo
     throw new Error('Informe coordenadas UTM válidas em metros, fuso de 1 a 60, hemisfério e datum.');
   }
   // SIRGAS 2000: elipsoide GRS80 e transformação geocêntrica nula para WGS84.
-  const referencia = datum === 'SIRGAS 2000' ? '+ellps=GRS80 +towgs84=0,0,0' : '+datum=WGS84';
-  const origem = `+proj=utm +zone=${zona} ${hemisferio === 'S' ? '+south' : ''} ${referencia} +units=m +no_defs`;
+  const origem = definicaoUTM(zona, hemisferio, datum);
   const [longitude, latitude] = proj4(origem, WGS84_GEO, [easting, northing]);
   const oeste = zona * 6 - 186;
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -80 || latitude > 84 ||

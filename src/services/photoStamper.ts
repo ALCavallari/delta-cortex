@@ -10,7 +10,7 @@ export interface EstampaFotoOptions {
 
 /**
  * Aplica visualmente via Canvas uma faixa informativa indelével e profissional na fotografia,
- * contendo a marca DELTA S ENGENHARIA, Data, Hora, Cliente/Projeto e Coordenadas UTM WGS84.
+ * contendo a marca DELTA S ENGENHARIA, data, hora, cliente/projeto e coordenadas UTM.
  */
 export async function aplicarEstampaFoto(
   fileOrDataUrl: File | Blob | string,
@@ -97,11 +97,11 @@ export async function aplicarEstampaFoto(
         ctx.fillText(`Cliente/Projeto: ${options.clienteProjeto || 'Não especificado'}`, padding, currentY);
         currentY += lineHeight;
 
-        // Linha 3: Coordenadas UTM WGS84
+        // Linha 3: coordenadas UTM no datum do registro.
         const utm = options.utm;
         ctx.fillStyle = '#E2E8F0';
         ctx.fillText(
-          `UTM WGS84: Zona ${utm.zona}${utm.hemisferio}  |  E: ${utm.easting.toLocaleString('pt-BR')} m  |  N: ${utm.northing.toLocaleString('pt-BR')} m`,
+          `UTM ${utm.referenciaGeodesica}: Zona ${utm.zona}${utm.hemisferio}  |  E: ${utm.easting.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m  |  N: ${utm.northing.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m`,
           padding,
           currentY
         );

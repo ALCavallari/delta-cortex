@@ -11,7 +11,8 @@ export function lerLinkGoogleMaps(link: string) {
   let url: URL;
   try { url = new URL(link.trim()); } catch { return null; }
   if (url.protocol !== 'https:' || url.username || url.password || url.port) return null;
-  if (url.hostname === 'maps.app.goo.gl' || (url.hostname === 'goo.gl' && url.pathname.startsWith('/maps/'))) return { tipo: 'encurtado' } as const;
+  if ((url.hostname === 'maps.app.goo.gl' && /^\/[\w-]+\/?$/.test(url.pathname)) ||
+      (url.hostname === 'goo.gl' && /^\/maps\/[\w-]+\/?$/.test(url.pathname))) return { tipo: 'encurtado' } as const;
   if (!hosts.has(url.hostname) || (!url.hostname.startsWith('maps.') && !/^\/maps(?:\/|$)/.test(url.pathname))) return null;
 
   let path: string;

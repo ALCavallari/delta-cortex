@@ -52,9 +52,9 @@ export function TechnicianDialog({ titulo, onClose, ocupado = false, children }:
 export function TechnicianForm({ tecnico, onClose, onSaved, mostrarBancarios = false }: {
   tecnico?: Profissional; onClose: () => void; onSaved: (p: Profissional) => void; mostrarBancarios?: boolean;
 }) {
-  const [dados, setDados] = useState(() => ({
+  const [dados, setDados] = useState<Record<Campo, string> & { atribuicao: NonNullable<Profissional['atribuicao']> | '' }>(() => ({
     ...Object.fromEntries(Object.keys(campos).map(k => [k, tecnico?.[k as Campo] ?? ''])) as Record<Campo, string>,
-    habilitado: tecnico ? tecnico.habilitado === true : true,
+    atribuicao: tecnico?.atribuicao ?? '',
   }));
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
@@ -76,7 +76,7 @@ export function TechnicianForm({ tecnico, onClose, onSaved, mostrarBancarios = f
     setOcupado(true);
     const agora = new Date().toISOString();
     const cadastro: Profissional = {
-      ...tecnico, ...dados, nome, cpf, cnpj, contato: telefone, email, placaVeiculo: placa,
+      ...tecnico, ...dados, atribuicao: dados.atribuicao || undefined, nome, cpf, cnpj, contato: telefone, email, placaVeiculo: placa,
       id: tecnico?.id ?? crypto.randomUUID(), origemTemporaria: false,
       criadoEm: tecnico ? tecnico.criadoEm : agora, atualizadoEm: agora,
     };
@@ -119,10 +119,13 @@ export function TechnicianForm({ tecnico, onClose, onSaved, mostrarBancarios = f
         </Secao>
         <Secao titulo="Contato e Endereço">{contato.map(campo)}</Secao>
         <Secao titulo="Informações Operacionais">
-          <label className="text-xs font-semibold text-slate-700">Habilitado
-            <select className={`${input} mt-1`} value={dados.habilitado ? 'sim' : 'nao'}
-              onChange={e => setDados(prev => ({ ...prev, habilitado: e.target.value === 'sim' }))}>
-              <option value="sim">Sim</option><option value="nao">Não</option>
+          <label className="text-xs font-semibold text-slate-700">Atribuição
+            <select className={`${input} mt-1`} value={dados.atribuicao}
+              onChange={e => setDados(prev => ({ ...prev, atribuicao: e.target.value as typeof dados.atribuicao }))}>
+              <option value="">Selecione...</option>
+              {['Fauna', 'Flora', 'Operação', 'Projeto', 'Socioeconomia', 'Topografia'].map(valor => (
+                <option key={valor} value={valor}>{valor}</option>
+              ))}
             </select>
           </label>
           {campo('placaVeiculo')}
@@ -160,7 +163,7 @@ export function TechnicianDetails({ tecnico, onClose, onEdit, onDelete, mostrarB
       <Secao titulo="Dados Pessoais">{pessoais.map(info)}</Secao>
       <Secao titulo="Contato e Endereço">{contato.map(info)}</Secao>
       <Secao titulo="Informações Operacionais">
-        <div><p className="text-xs font-semibold text-slate-500">Habilitado</p><p>{tecnico.habilitado ? 'Sim' : 'Não'}</p></div>
+        <div><p className="text-xs font-semibold text-slate-500">Atribuição</p><p>{tecnico.atribuicao || '—'}</p></div>
         {info('placaVeiculo')}
       </Secao>
       {mostrarBancarios && <details className="rounded-xl border border-slate-200 p-3">
