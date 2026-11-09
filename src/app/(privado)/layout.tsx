@@ -4,13 +4,16 @@ import { redirect } from 'next/navigation';
 import { PrivateHistoryGuard } from '@/components/auth/PrivateHistoryGuard';
 import { criarClienteServidor } from '@/lib/supabase/server';
 import { COOKIE_RECUPERACAO, REDEFINIR, sessaoVerificada } from '@/lib/supabase/session';
+import { PerfilProvider } from '@/components/auth/PerfilContext';
+import { lerPerfil } from '@/lib/supabase/perfil';
 
 async function AreaVerificada({ children }: { children: ReactNode }) {
   const supabase = await criarClienteServidor();
   const claims = supabase ? await sessaoVerificada(supabase) : null;
-  if (!claims) redirect('/');
+  if (!claims || !supabase) redirect('/');
   if (claims.session_id && (await cookies()).get(COOKIE_RECUPERACAO)?.value === claims.session_id) redirect(REDEFINIR);
-  return <PrivateHistoryGuard>{children}</PrivateHistoryGuard>;
+  const perfil = await lerPerfil(supabase, claims.sub);
+  return <PrivateHistoryGuard><PerfilProvider perfil={perfil}>{children}</PerfilProvider></PrivateHistoryGuard>;
 }
 
 export default function PrivateLayout({ children }: { children: ReactNode }) {

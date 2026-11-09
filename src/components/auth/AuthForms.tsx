@@ -56,10 +56,13 @@ export function LoginForm({ configurado }: { configurado: boolean }) {
 }
 
 export function RecuperarForm({ configurado }: { configurado: boolean }) {
-  const invalido = useSearchParams().get('erro') === 'link';
+  const erroLink = useSearchParams().get('erro');
+  const invalido = erroLink === 'convite'
+    ? 'Convite inválido, usado ou expirado. Solicite um link de recuperação para o e-mail convidado.'
+    : erroLink === 'link' ? 'Link inválido ou expirado. Solicite um novo link.' : undefined;
   const [estado, action, pendente] = useActionState(solicitarRecuperacao, {});
   return <form action={action} className="space-y-4">
-    <Erro mensagem={configurado ? estado.erro ?? (invalido && !estado.mensagem ? 'Link inválido ou expirado. Solicite um novo link.' : undefined) : configuracao} />
+    <Erro mensagem={configurado ? estado.erro ?? (!estado.mensagem ? invalido : undefined) : configuracao} />
     {estado.mensagem && <p role="status" className="rounded-xl bg-sky-50 p-3 text-sm text-sky-900">{estado.mensagem}</p>}
     <fieldset disabled={!configurado || pendente} className="space-y-3">
       <Email />

@@ -1,9 +1,35 @@
 import { criarClienteNavegador } from '@/lib/supabase/client';
+import { lerPerfil } from '@/lib/supabase/perfil';
+import { sessaoVerificada } from '@/lib/supabase/session';
+import type { RegistroCampo } from '@/types';
 
 export function bancoOperacional() {
   const banco = criarClienteNavegador();
   if (!banco) throw new Error('A conexão com o Supabase não está configurada.');
   return banco;
+}
+
+export async function acessoOperacional() {
+  const banco = bancoOperacional();
+  const sessao = await sessaoVerificada(banco);
+  const perfil = sessao && await lerPerfil(banco, sessao.sub);
+  if (!perfil) throw new Error('Seu acesso operacional está indisponível.');
+  return perfil;
+}
+
+export type ContextoRestrito = {
+  clientes: { id: string; nomeRazaoSocial: string }[];
+  profissionalId: string | null;
+  profissionais: { id: string; nome: string }[];
+};
+
+export async function contextoRestrito() {
+  return confirmarLinha(await bancoOperacional().rpc('delta_cortex_contexto_restrito'), 'carregar os vínculos') as unknown as ContextoRestrito;
+}
+
+export async function ocorrenciasPortal(projetoId: string) {
+  return confirmarLinha(await bancoOperacional().rpc('delta_cortex_ocorrencias_portal', { p_projeto: projetoId }),
+    'listar ocorrências do portal') as unknown as RegistroCampo[];
 }
 
 export function conferirOperacao(erro: { code?: string } | null, acao: string) {

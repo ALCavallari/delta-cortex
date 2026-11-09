@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
+import { usePerfil } from '@/components/auth/PerfilContext';
 import { descricoesModulos } from '@/services/moduleDescriptions';
 import { Header } from '@/components/Header';
 import { ModuleCard } from '@/components/ModuleCard';
@@ -15,6 +17,7 @@ import {
 } from 'lucide-react';
 
 export default function DashboardPage() {
+  const perfil = usePerfil();
   const modules = [
     {
       id: 'clientes',
@@ -93,6 +96,10 @@ export default function DashboardPage() {
             ))}
           </div>
         </section>
+        {perfil === 'admin' && <Link href="/administracao/usuarios"
+          className="mt-6 inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-3 font-semibold">
+          <Users size={18} aria-hidden /> Administração de Usuários
+        </Link>}
         <BackupLegado />
       </main>
 

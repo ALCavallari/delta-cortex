@@ -18,6 +18,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { Cliente, Profissional, MotivoVisita, Visita, Projeto } from '@/types';
+import { contextoRestrito } from '@/services/supabaseOperacional';
 import {
   ClienteRepository,
   ProfissionalRepository,
@@ -29,13 +30,18 @@ interface NewVisitModalProps {
   isOpen: boolean;
   onClose: () => void;
   onVisitCreated?: (visita: Visita) => void;
+  tecnicoDesignado?: boolean;
 }
 
-export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModalProps) {
+type ContratanteVisita = Pick<Cliente, 'id' | 'nomeRazaoSocial'> & Partial<Pick<Cliente, 'cpfCnpj' | 'cidade' | 'estado'>>;
+type TecnicoVisita = Pick<Profissional, 'id' | 'nome'>;
+
+export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignado = false }: NewVisitModalProps) {
   const router = useRouter();
 
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [clientes, setClientes] = useState<ContratanteVisita[]>([]);
+  const [profissionais, setProfissionais] = useState<TecnicoVisita[]>([]);
+  const [executorVinculado, setExecutorVinculado] = useState<string | null>(null);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [carregandoDados, setCarregandoDados] = useState(true);
 
@@ -61,21 +67,22 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
     const carregar = async () => {
       try {
         setCarregandoDados(true);
-        const [clis, profs, projs, visitasExistentes] = await Promise.all([
-          ClienteRepository.listar(),
-          ProfissionalRepository.listarAtivos(),
+        const [contexto, projs, visitasExistentes] = await Promise.all([
+          tecnicoDesignado ? contextoRestrito() : Promise.all([ClienteRepository.listar(), ProfissionalRepository.listarAtivos()])
+            .then(([clientes, profissionais]) => ({ clientes, profissionais, profissionalId: null })),
           ProjetoRepository.listar(),
           VisitaRepository.listar(),
         ]);
 
-        setClientes(clis);
-        setProfissionais(profs);
+        setClientes(contexto.clientes);
+        setProfissionais(contexto.profissionais);
+        setExecutorVinculado(contexto.profissionalId);
         setProjetos(projs);
 
         setProjetoId(projs[0]?.id ?? '');
 
-        setExecutorId(profs[0]?.id ?? '');
-        setResponsavelTecnicoId(profs[0]?.id ?? '');
+        setExecutorId(contexto.profissionalId ?? contexto.profissionais[0]?.id ?? '');
+        setResponsavelTecnicoId(contexto.profissionalId ?? contexto.profissionais[0]?.id ?? '');
 
         // Data atual no formato YYYY-MM-DD para o input
         const hoje = new Date();
@@ -100,7 +107,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
     carregar();
     setErros({});
     setErroGeral(null);
-  }, [isOpen]);
+  }, [isOpen, tecnicoDesignado]);
 
   // Recalcula código automático se data ou toggle mudar
   useEffect(() => {
@@ -112,7 +119,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
   }, [vinculacaoAutomatica, dataVisita]);
 
   const mapaClientes = useMemo(() => {
-    const map = new Map<string, Cliente>();
+    const map = new Map<string, ContratanteVisita>();
     for (const c of clientes) {
       map.set(c.id, c);
     }
@@ -400,7 +407,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
                     {clienteDoProjeto ? clienteDoProjeto.nomeRazaoSocial : 'Selecione um projeto para identificar o contratante'}
                   </span>
                 </div>
-                {clienteDoProjeto && (
+                {clienteDoProjeto?.cpfCnpj && (
                   <span className="text-[11px] text-slate-500 font-normal">
                     {clienteDoProjeto.cpfCnpj} • {clienteDoProjeto.cidade}/{clienteDoProjeto.estado}
                   </span>
@@ -417,11 +424,11 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Corpo Técnico</h3>
             {carregandoDados ? <p role="status" className="text-sm text-slate-600">Carregando técnicos…</p> :
               !profissionais.length ? <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-                <p>{SEM_TECNICOS}</p>
-                <Link href={CORPO_TECNICO} className="font-semibold text-sky-700 underline">Abrir Corpo Técnico</Link>
+                <p>{tecnicoDesignado ? 'Nenhum profissional disponível para a visita. Procure a administração.' : SEM_TECNICOS}</p>
+                {!tecnicoDesignado && <Link href={CORPO_TECNICO} className="font-semibold text-sky-700 underline">Abrir Corpo Técnico</Link>}
               </div> :
               <div className="grid gap-4 sm:grid-cols-2">
-                <SeletorTecnico rotulo="Executor da Visita" tecnicos={profissionais} value={executorId} erro={erros.executorId}
+                <SeletorTecnico rotulo="Executor da Visita" tecnicos={profissionais} value={executorId} erro={erros.executorId} fixo={!!executorVinculado}
                   onChange={id => { setExecutorId(id); setErros(prev => ({ ...prev, executorId: '' })); }} />
                 <SeletorTecnico rotulo="Responsável Técnico (RT)" tecnicos={profissionais} value={responsavelTecnicoId} erro={erros.responsavelTecnicoId}
                   onChange={id => { setResponsavelTecnicoId(id); setErros(prev => ({ ...prev, responsavelTecnicoId: '' })); }} />
@@ -503,8 +510,8 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
   );
 }
 
-function SeletorTecnico({ rotulo, tecnicos, value, onChange, erro }: {
-  rotulo: string; tecnicos: Profissional[]; value: string; onChange: (id: string) => void; erro?: string;
+function SeletorTecnico({ rotulo, tecnicos, value, onChange, erro, fixo = false }: {
+  rotulo: string; tecnicos: TecnicoVisita[]; value: string; onChange: (id: string) => void; erro?: string; fixo?: boolean;
 }) {
   const [busca, setBusca] = useState('');
   const termo = normalizarBusca(busca);
@@ -512,10 +519,10 @@ function SeletorTecnico({ rotulo, tecnicos, value, onChange, erro }: {
   const opcoes = tecnicos.filter(p => p.id === value || filtrados.includes(p));
   const classe = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#00AFF0]';
   return <div className="min-w-0 space-y-2">
-    <input type="search" aria-label={`Pesquisar por nome: ${rotulo}`} placeholder="Pesquisar por nome" className={classe}
-      value={busca} onChange={e => setBusca(e.target.value)} />
+    {!fixo && <input type="search" aria-label={`Pesquisar por nome: ${rotulo}`} placeholder="Pesquisar por nome" className={classe}
+      value={busca} onChange={e => setBusca(e.target.value)} />}
     <label className="block text-xs font-semibold text-slate-700">{rotulo} *
-      <select className={`${classe} mt-1`} value={value} onChange={e => onChange(e.target.value)}>
+      <select className={`${classe} mt-1`} value={value} disabled={fixo} onChange={e => onChange(e.target.value)}>
         <option value="">Selecione um técnico</option>
         {opcoes.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
       </select>

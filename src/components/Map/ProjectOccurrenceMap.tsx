@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, Check, Filter, MapPin, Maximize2 } from 'lucide-react';
 import { ArquivoGeograficoRepository, RegistroCampoRepository } from '@/services/repositoriosOperacionais';
+import { ocorrenciasPortal } from '@/services/supabaseOperacional';
 import { normalizarBusca } from '@/services/technicians';
 import { validarCoordenadas } from '@/services/utm';
 import type { Cliente, Projeto, RegistroCampo } from '@/types';
@@ -22,8 +23,8 @@ const resolvida = (r: RegistroCampo) => r.situacao === 'resolvido';
 const temCoordenadas = ({ latitude, longitude }: { latitude: number; longitude: number }) =>
   Number.isFinite(latitude) && Number.isFinite(longitude) && validarCoordenadas(latitude, longitude);
 
-export function ProjectOccurrenceMap({ projetos, clientes, carregando }: {
-  projetos: Projeto[]; clientes: Cliente[]; carregando: boolean;
+export function ProjectOccurrenceMap({ projetos, clientes, carregando, portal = false }: {
+  projetos: Projeto[]; clientes: Pick<Cliente, 'id' | 'nomeRazaoSocial'>[]; carregando: boolean; portal?: boolean;
 }) {
   const [busca, setBusca] = useState('');
   const [projetoId, setProjetoId] = useState('');
@@ -35,7 +36,9 @@ export function ProjectOccurrenceMap({ projetos, clientes, carregando }: {
   const opcoes = projetos.filter(projeto => projeto.id === projetoId || filtrados.includes(projeto));
 
   if (carregando) return <p role="status" className="p-4 text-sm text-slate-600">Carregando projetos…</p>;
-  if (!projetos.length) return <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm">Nenhum projeto cadastrado.</p>;
+  if (!projetos.length) return <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm">
+    {portal ? 'Nenhum projeto autorizado. Procure a administração.' : 'Nenhum projeto cadastrado.'}
+  </p>;
 
   return <div className="space-y-4">
     <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
@@ -54,7 +57,7 @@ export function ProjectOccurrenceMap({ projetos, clientes, carregando }: {
       </label>
       {!filtrados.length && <p className="text-sm text-slate-600">Nenhum projeto encontrado para essa pesquisa.</p>}
     </div>
-    {selecionado ? <OcorrenciasProjeto key={selecionado.id} projeto={selecionado} cliente={nomes.get(selecionado.clienteId)} />
+    {selecionado ? <OcorrenciasProjeto key={selecionado.id} projeto={selecionado} cliente={nomes.get(selecionado.clienteId)} portal={portal} />
       : <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 text-sm">
         <p id="selecionar-projeto-mapa">Selecione um projeto para consultar as ocorrências e expandir o mapa.</p>
         <button type="button" disabled aria-describedby="selecionar-projeto-mapa"
@@ -65,7 +68,7 @@ export function ProjectOccurrenceMap({ projetos, clientes, carregando }: {
   </div>;
 }
 
-function OcorrenciasProjeto({ projeto, cliente }: { projeto: Projeto; cliente?: string }) {
+function OcorrenciasProjeto({ projeto, cliente, portal }: { projeto: Projeto; cliente?: string; portal: boolean }) {
   const [arquivos, setArquivos] = useState<ArquivoGeografico[]>([]);
   const [falhaArquivos, setFalhaArquivos] = useState(false);
   const [registros, setRegistros] = useState<RegistroCampo[] | null>(null);
@@ -102,8 +105,8 @@ function OcorrenciasProjeto({ projeto, cliente }: { projeto: Projeto; cliente?: 
   useEffect(() => {
     let ativo = true;
     void Promise.all([
-      RegistroCampoRepository.listarOcorrenciasDoProjeto(projeto.id),
-      ArquivoGeograficoRepository.listar(projeto.id).catch(() => {
+      portal ? ocorrenciasPortal(projeto.id) : RegistroCampoRepository.listarOcorrenciasDoProjeto(projeto.id),
+      portal ? [] : ArquivoGeograficoRepository.listar(projeto.id).catch(() => {
         if (ativo) setFalhaArquivos(true);
         return [];
       }),
@@ -114,10 +117,10 @@ function OcorrenciasProjeto({ projeto, cliente }: { projeto: Projeto; cliente?: 
       }
     }).catch(() => { if (ativo) setFalha(true); });
     return () => { ativo = false; };
-  }, [projeto.id, tentativa]);
+  }, [projeto.id, tentativa, portal]);
 
   useEffect(() => {
-    if (!selecionado) return;
+    if (!selecionado || portal) return;
     let ativo = true;
     void RegistroCampoRepository.obterPorId(selecionado.id).then(registro => {
       if (!ativo) return;
@@ -125,7 +128,8 @@ function OcorrenciasProjeto({ projeto, cliente }: { projeto: Projeto; cliente?: 
       setDetalhes({ ...selecionado, fotos: registro.fotos });
     }).catch(() => { if (ativo) setFalhaDetalhes(true); });
     return () => { ativo = false; };
-  }, [selecionado]);
+  }, [selecionado, portal]);
+  const detalheAtual = portal ? selecionado : detalhes;
 
   const enquadramento = useMemo<EnquadramentoMapa | undefined>(() => {
     const local = projeto.localizacao;
@@ -231,7 +235,7 @@ function OcorrenciasProjeto({ projeto, cliente }: { projeto: Projeto; cliente?: 
               : <div className="flex h-full flex-col items-center justify-center gap-3 bg-white p-6 pt-20 text-center text-sm text-slate-600">
                 <MapPin aria-hidden /> Este projeto não tem localização cadastrada nem ocorrências com coordenadas válidas.
               </div>}
-            {expandido && selecionado && !detalhes && <p role={falhaDetalhes ? 'alert' : 'status'}
+            {expandido && selecionado && !detalheAtual && <p role={falhaDetalhes ? 'alert' : 'status'}
               className="absolute bottom-6 right-3 z-20 rounded-lg bg-white p-2 text-xs shadow">
               {falhaDetalhes ? 'Não foi possível abrir os detalhes.' : 'Carregando detalhes…'}
             </p>}
@@ -249,7 +253,7 @@ function OcorrenciasProjeto({ projeto, cliente }: { projeto: Projeto; cliente?: 
       <section aria-label="Lista de ocorrências" className="overflow-hidden rounded-2xl border border-slate-200 bg-white lg:flex lg:h-144 lg:flex-col">
         <h3 className="border-b border-slate-100 p-3 text-sm font-bold">Ocorrências</h3>
         {exibidos.length > marcadores.length && <p className="p-3 text-xs text-slate-600">Registros sem coordenadas válidas aparecem apenas na lista.</p>}
-        {selecionado && !detalhes && <p role={falhaDetalhes ? 'alert' : 'status'} className="p-3 text-sm text-slate-600">
+        {selecionado && !detalheAtual && <p role={falhaDetalhes ? 'alert' : 'status'} className="p-3 text-sm text-slate-600">
           {falhaDetalhes ? 'Não foi possível abrir os detalhes. Selecione o registro novamente.' : 'Carregando detalhes…'}
         </p>}
         {!exibidos.length ? <p className="p-3 text-sm text-slate-600">Nenhuma ocorrência corresponde à visualização atual.</p>
@@ -273,6 +277,6 @@ function OcorrenciasProjeto({ projeto, cliente }: { projeto: Projeto; cliente?: 
           </ul>}
       </section>
     </div>
-    {detalhes && <MarkerDetailsModal registro={detalhes} isOpen readOnly onClose={() => { setDetalhes(null); setSelecionado(null); }} />}
+    {detalheAtual && <MarkerDetailsModal registro={detalheAtual} isOpen readOnly onClose={() => { setDetalhes(null); setSelecionado(null); }} />}
   </div>;
 }

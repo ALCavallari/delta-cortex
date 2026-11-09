@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { supabaseConfig } from '@/lib/supabase/config';
 import { COOKIE_RECUPERACAO, DASHBOARD, REDEFINIR, sessaoVerificada } from '@/lib/supabase/session';
+import { lerPerfil } from '@/lib/supabase/perfil';
+import { destinoPerfil, rotaPermitida } from '@/services/perfis';
 
 const recursosPublicos = new Set([
   '/favicon.ico', '/Cortex.png', '/Cortex_Simplificado.png', '/logo-delta-s.png', '/logo-delta-s.jpg',
@@ -22,7 +24,7 @@ export async function proxy(request: NextRequest) {
     return destino;
   }
 
-  if (pathname === '/auth/callback') return semCache(resposta);
+  if (pathname === '/auth/callback' || pathname === '/auth/convite') return semCache(resposta);
 
   const config = supabaseConfig();
   const supabase = config && createServerClient(config.url, config.key, {
@@ -42,7 +44,14 @@ export async function proxy(request: NextRequest) {
     return semCache(NextResponse.redirect(new URL(recuperando ? REDEFINIR : DASHBOARD, request.url)));
   }
   if (paginasPublicas.has(pathname)) return semCache(resposta);
-  if (claims && !recuperando) return semCache(resposta);
+  if (supabase && claims && !recuperando) {
+    const perfil = await lerPerfil(supabase, claims.sub);
+    if (pathname === '/acesso-indisponivel' || (perfil && rotaPermitida(perfil, pathname))) return semCache(resposta);
+    if (pathname.startsWith('/api/') || !['GET', 'HEAD'].includes(request.method)) {
+      return semCache(NextResponse.json({ erro: 'Acesso indisponível.' }, { status: 403 }));
+    }
+    return semCache(NextResponse.redirect(new URL(perfil ? destinoPerfil(perfil) : '/acesso-indisponivel', request.url)));
+  }
 
   if (pathname.startsWith('/api/') || pathname === '/api' || !['GET', 'HEAD'].includes(request.method)) {
     return semCache(NextResponse.json({ erro: 'Sessão indisponível.' }, { status: config ? 401 : 503 }));

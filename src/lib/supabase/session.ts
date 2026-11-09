@@ -3,7 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export const COOKIE_RECUPERACAO = 'delta-recovery';
 export const DASHBOARD = '/dashboard';
 export const REDEFINIR = '/redefinir-senha';
-const areasPrivadas = ['/dashboard', '/clientes', '/projetos', '/modulos', '/acompanhamento'];
+const areasPrivadas = ['/dashboard', '/clientes', '/projetos', '/modulos', '/acompanhamento',
+  '/administracao', '/portal-cliente', '/meus-trabalhos'];
 const temCaractereInseguro = (texto: string) =>
   [...texto].some(c => c === '\\' || c.charCodeAt(0) <= 31 || c.charCodeAt(0) === 127);
 

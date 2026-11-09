@@ -1,7 +1,6 @@
 import type { EventoRegistro, Fotografia, RegistroCampo, RelatorioVisita, SituacaoRegistro, Visita } from '@/types';
 import { baixarObjeto, BUCKET_VISITAS, enviarObjeto, removerEnvioPendente } from './arquivosSupabase';
-import { ClienteSupabaseRepository } from './clientesSupabase';
-import { bancoOperacional, confirmarLinha, conferirOperacao, listarPaginas } from './supabaseOperacional';
+import { acessoOperacional, bancoOperacional, confirmarLinha, conferirOperacao, listarPaginas } from './supabaseOperacional';
 
 const visitas = 'visitas_sistematicas';
 const registros = 'visitas_sistematicas_registros';
@@ -28,7 +27,7 @@ function visitaDaLinha(v: LinhaVisita): Visita {
 }
 
 async function listarVisitas(exclusao: 'ativas' | 'excluidas' | 'todas', projetoId?: string) {
-  await ClienteSupabaseRepository.obterAcesso();
+  await acessoOperacional();
   const banco = bancoOperacional();
   const lista = await listarPaginas<LinhaVisita>(id => {
     let consulta = banco.from(visitas).select('*').order('id').limit(500);
@@ -58,7 +57,7 @@ export const VisitaSupabaseRepository = {
     return count ?? 0;
   },
   async obterPorId(id: string) {
-    await ClienteSupabaseRepository.obterAcesso();
+    await acessoOperacional();
     const { data, error } = await bancoOperacional().from(visitas).select('*').eq('id', id)
       .is('excluido_em', null).maybeSingle<LinhaVisita>();
     conferirOperacao(error, 'consultar a visita');
@@ -159,7 +158,7 @@ async function registroDaLinha(r: LinhaRegistro, incluirFotos: boolean): Promise
 const camposRegistro = '*,visitas_sistematicas(identificacao),visitas_sistematicas_eventos(*)';
 
 async function listarRegistros(filtro: { visitaId?: string; projetoId?: string; excluidos?: boolean }, fotos: boolean) {
-  await ClienteSupabaseRepository.obterAcesso();
+  await acessoOperacional();
   const banco = bancoOperacional();
   const consultar = (coluna: 'visita_origem_id' | 'projeto_id', valor: string) =>
     listarPaginas<LinhaRegistro>(id => {
@@ -198,7 +197,7 @@ export const RegistroCampoSupabaseRepository = {
     }), 'alterar a situação da ocorrência');
   },
   async obterPorId(id: string) {
-    await ClienteSupabaseRepository.obterAcesso();
+    await acessoOperacional();
     const { data, error } = await bancoOperacional().from(registros).select(camposRegistro)
       .eq('id', id).maybeSingle<LinhaRegistro>();
     conferirOperacao(error, 'consultar o registro');

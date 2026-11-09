@@ -207,6 +207,8 @@ O login protege a entrada da aplicação. O painel de legado verifica no servido
 
 ## Clientes no Supabase
 
+O painel de [Administração de Usuários](supabase/administracao-usuarios.md) documenta os perfis, os convites e a ativação controlada de acesso por projeto.
+
 Clientes usa exclusivamente `public.clientes` no Supabase em desenvolvimento e produção. Configure `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` em `.env.local` e na Vercel. A tela indica a fonte e apresenta erros de configuração, conexão ou permissão. Os clientes anteriores permanecem no IndexedDB.
 
 A migration operacional já foi aplicada no projeto publicado, conforme confirmação do responsável. A variável `NEXT_PUBLIC_OPERACAO_SUPABASE` deixou de ser usada. Consulte o [procedimento de revisão do legado](supabase/README.md) para exportar um ZIP e limpar exemplos originais selecionados.

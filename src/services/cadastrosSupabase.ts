@@ -1,7 +1,7 @@
 import type { Profissional, Projeto } from '@/types';
 import type { ArquivoGeografico } from '@/types/geographic';
 import { ClienteSupabaseRepository } from './clientesSupabase';
-import { bancoOperacional, confirmarLinha, conferirOperacao, listarPaginas } from './supabaseOperacional';
+import { acessoOperacional, bancoOperacional, confirmarLinha, conferirOperacao, listarPaginas } from './supabaseOperacional';
 import { enviarGeografico, removerEnvioPendente } from './arquivosSupabase';
 
 type LinhaProjeto = {
@@ -24,7 +24,7 @@ function projetoDaLinha(r: LinhaProjeto): Projeto {
 }
 
 async function listarProjetos(clienteId?: string) {
-  await ClienteSupabaseRepository.obterAcesso();
+  await acessoOperacional();
   const banco = bancoOperacional();
   const linhas = await listarPaginas<LinhaProjeto>(id => {
     let consulta = banco.from('projetos').select('*').is('excluido_em', null).order('id').limit(500);
@@ -39,7 +39,7 @@ export const ProjetoSupabaseRepository = {
   listar: () => listarProjetos(),
   listarPorCliente: listarProjetos,
   async obterPorId(id: string) {
-    await ClienteSupabaseRepository.obterAcesso();
+    await acessoOperacional();
     const { data, error } = await bancoOperacional().from('projetos').select('*').eq('id', id)
       .is('excluido_em', null).maybeSingle<LinhaProjeto>();
     conferirOperacao(error, 'consultar o projeto');

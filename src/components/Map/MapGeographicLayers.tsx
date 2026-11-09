@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent, useRef, useState, type RefObject } from 'rea
 import { Layers3, MapPin } from 'lucide-react';
 import type L from 'leaflet';
 import { ArquivoGeograficoRepository, ProjetoRepository } from '@/services/repositoriosOperacionais';
+import { usePerfil } from '@/components/auth/PerfilContext';
 import type { ArquivoGeografico } from '@/types/geographic';
 import { iniciarCamadaGeografica, localizarLimites } from './geographicCanvasLayer';
 
@@ -54,6 +55,7 @@ export function MapGeographicLayers({ projetoId, arquivos, mapa, consulta }: {
 }
 
 function Camada({ arquivo, mapa }: { arquivo: ArquivoGeografico; mapa: RefObject<L.Map | null> }) {
+  const perfil = usePerfil();
   const [visivel, setVisivel] = useState(arquivo.visivel);
   const [opacidade, setOpacidade] = useState(1);
   const [situacao, setSituacao] = useState<{ mensagem: string; pronto: boolean }>();
@@ -91,6 +93,7 @@ function Camada({ arquivo, mapa }: { arquivo: ArquivoGeografico; mapa: RefObject
           setSituacao(undefined);
           setVisivel(valor);
           setFalhaPersistencia(false);
+          if (perfil === 'tecnico' || perfil === 'leitor') return;
           void ArquivoGeograficoRepository.definirVisibilidade(arquivo.id, arquivo.projetoId, valor)
             .catch(() => setFalhaPersistencia(true));
         }} />

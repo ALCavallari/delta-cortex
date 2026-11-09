@@ -1,5 +1,6 @@
 'use client';
 
+import { usePerfil } from '@/components/auth/PerfilContext';
 import React, { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -55,6 +56,8 @@ const LeafletMap = dynamic(() => import('@/components/Map/LeafletMap'), {
 
 function VisitaOperacionalContent() {
   const router = useRouter();
+  const tecnicoDesignado = usePerfil() === 'tecnico';
+  const voltar = tecnicoDesignado ? '/meus-trabalhos' : '/acompanhamento';
   const params = useParams();
   const visitaId = (params?.id as string) || '';
 
@@ -104,7 +107,7 @@ function VisitaOperacionalContent() {
         setErroCarga('');
         const v = await VisitaRepository.obterPorId(visitaId);
         if (!v) {
-          router.push('/acompanhamento');
+          router.push(voltar);
           return;
         }
         setVisita(v);
@@ -120,7 +123,7 @@ function VisitaOperacionalContent() {
     };
 
     carregarDados();
-  }, [visitaId, router]);
+  }, [visitaId, router, voltar]);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -221,7 +224,7 @@ function VisitaOperacionalContent() {
       setFinalizando(true);
       await VisitaRepository.atualizarStatus(visita.id, 'concluida', visita.atualizadoEm);
       setVisita((prev) => (prev ? { ...prev, status: 'concluida' } : null));
-      setRelatorioModal('pergunta');
+      if (tecnicoDesignado) router.push(voltar); else setRelatorioModal('pergunta');
     } catch (err) {
       console.error('Erro ao atualizar status:', err);
       showToast('Não foi possível finalizar a visita. Tente novamente.');
@@ -240,7 +243,7 @@ function VisitaOperacionalContent() {
   if (erroCarga) {
     return <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-900 p-6 text-white">
       <p role="alert">{erroCarga}</p>
-      <button type="button" className="rounded-lg bg-white/10 px-4 py-2" onClick={() => router.push('/acompanhamento')}>Voltar aos trabalhos</button>
+      <button type="button" className="rounded-lg bg-white/10 px-4 py-2" onClick={() => router.push(voltar)}>Voltar aos trabalhos</button>
     </div>;
   }
 
@@ -307,13 +310,13 @@ function VisitaOperacionalContent() {
           <h2 id="relatorio-titulo" className="text-lg font-bold mb-3">Relatório de Visita</h2>
           <p className="text-sm mb-6">Deseja emitir o relatório de visita?</p>
           <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => router.push('/acompanhamento')} className="px-6 py-3 border border-slate-300 rounded-xl font-semibold">Não</button>
+            <button type="button" onClick={() => router.push(voltar)} className="px-6 py-3 border border-slate-300 rounded-xl font-semibold">Não</button>
             <button type="button" onClick={() => setRelatorioModal('atividades')} className="px-6 py-3 bg-[#00AFF0] text-white rounded-xl font-semibold">Sim</button>
           </div>
         </section>
       </div>}
       {relatorioModal === 'atividades' && <ReportActivitiesModal visita={visita}
-        onClose={() => router.push('/acompanhamento')} onDone={() => router.push('/acompanhamento')} />}
+        onClose={() => router.push(voltar)} onDone={() => router.push(voltar)} />}
       {/* Toast Feedback */}
       {toastMsg && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#333436] text-white shadow-2xl border border-slate-700 text-xs sm:text-sm font-semibold animate-slide-up">
@@ -327,7 +330,7 @@ function VisitaOperacionalContent() {
         {/* Esquerda: Retorno e Logo */}
         <div className="flex items-center gap-3 sm:gap-4">
           <Link
-            href="/acompanhamento"
+            href={voltar}
             className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 text-xs font-semibold"
             title="Voltar ao Trabalho de Campo"
           >

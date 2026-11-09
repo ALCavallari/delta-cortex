@@ -5,6 +5,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Home, ArrowLeft } from 'lucide-react';
+import { usePerfil } from '@/components/auth/PerfilContext';
+import { destinoPerfil } from '@/services/perfis';
 
 interface HeaderProps {
   title?: string;
@@ -21,6 +23,8 @@ export function Header({
   backLabel = 'Voltar',
   action,
 }: HeaderProps) {
+  const perfil = usePerfil();
+  const inicio = perfil ? destinoPerfil(perfil) : '/dashboard';
   return (
     <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,7 +42,7 @@ export function Header({
               </Link>
             )}
 
-            <Link href="/dashboard" className="flex items-center gap-3 group">
+            <Link href={inicio} className="flex items-center gap-3 group">
               <div className="flex shrink-0 items-center">
                 <Image
                   src="/Cortex_Simplificado.png"
@@ -72,7 +76,7 @@ export function Header({
           <div className="flex items-center gap-2 sm:gap-3">
             {action}
             <Link
-              href="/dashboard"
+              href={inicio}
               className="inline-flex items-center gap-1.5 p-2 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium text-slate-600 hover:text-[#00AFF0] hover:bg-blue-50/60 rounded-lg transition-colors border border-transparent hover:border-blue-100"
               title="Menu Principal"
             >
