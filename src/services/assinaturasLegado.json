@@ -1,0 +1,57 @@
+[
+  {
+    "store": "profissionais",
+    "id": "prof-demo-1",
+    "assinatura": "41dbb87def9975021d4ddfec7e84cdac92f849f3d9d1306d1939d223ee0c0314"
+  },
+  {
+    "store": "profissionais",
+    "id": "prof-demo-2",
+    "assinatura": "2cddfef22f996d0332b7cfa8913d3f35241040bc64b7edbebb4ccae688f2c087"
+  },
+  {
+    "store": "profissionais",
+    "id": "prof-demo-3",
+    "assinatura": "1be8bd0c56a2316b722fce6be788fb874ff2d78cdc14e612848ccce919c3bb53"
+  },
+  {
+    "store": "profissionais",
+    "id": "prof-demo-4",
+    "assinatura": "173664d956524c416dbe0f12357faadd1d36bc5790a1de481ae1d50057cd8245"
+  },
+  {
+    "store": "clientes",
+    "id": "cli-demo-1",
+    "assinatura": "3a51e3c224afccff21ebd4ed2a22bd212e33d0e431372c98305145e051667482"
+  },
+  {
+    "store": "clientes",
+    "id": "cli-demo-2",
+    "assinatura": "ad03ab4ae8fc472fc890d2cc85936ca03a42a8233bb0d11b820a78c8dfd046c7"
+  },
+  {
+    "store": "projetos",
+    "id": "proj-demo-1",
+    "assinatura": "dbadadabf01f472b62dd4d4c5ca6745269939732b11c3d6fc2ca838669ab73cd"
+  },
+  {
+    "store": "projetos",
+    "id": "proj-demo-2",
+    "assinatura": "af4243e198a80720288a84aeacf129e174d86fb30add0b8784b6128fe4fd48d9"
+  },
+  {
+    "store": "visitas",
+    "id": "vis-demo-1",
+    "assinatura": "f6639ca7dd79a1544cadb0aa424fcaefca9b392d614e1fb2f36038c1d7cc25d9"
+  },
+  {
+    "store": "registros_campo",
+    "id": "reg-demo-1",
+    "assinatura": "1930435935e7366852980bae43baf2473581d3640f59e81e8d463f42f50d10ca"
+  },
+  {
+    "store": "registros_campo",
+    "id": "reg-demo-2",
+    "assinatura": "584955264ab6b60b9a5e793b9a69bb22f04f76b1d7a17c458ab84cebea513071"
+  }
+]

@@ -4,7 +4,7 @@ import { BotaoAcaoCadastro } from '@/components/RegistrationActionButton';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import type { Profissional } from '@/types';
-import { operacaoCentralizada, ProfissionalRepository } from '@/services/repositoriosOperacionais';
+import { ProfissionalRepository } from '@/services/repositoriosOperacionais';
 import { formatarCPF, formatarCNPJ, validarCPF, validarCNPJ, validarEmail } from '@/services/validation';
 import { mascaraContato, numeroWhatsApp } from '@/services/technicians';
 
@@ -17,7 +17,6 @@ type Campo = keyof typeof campos;
 const pessoais = ['nome', 'rg', 'cpf', 'cnpj'] as const;
 const contato = ['contato', 'email', 'endereco'] as const;
 const bancarios = ['chavePix', 'banco', 'agencia', 'contaCorrente'] as const;
-const aviso = 'O armazenamento local deste navegador não deve ser usado para dados bancários reais.';
 const input = 'w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-[#00AFF0] focus:outline-hidden focus:ring-2 focus:ring-sky-100';
 export const botaoNeutro = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50';
 export const botaoPrincipal = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#00AFF0] px-4 py-2 text-sm font-semibold text-[#163340] hover:bg-sky-400 disabled:opacity-50';
@@ -129,7 +128,6 @@ export function TechnicianForm({ tecnico, onClose, onSaved, mostrarBancarios = f
           {campo('placaVeiculo')}
         </Secao>
         {mostrarBancarios && <Secao titulo="Dados Bancários">
-          {!operacaoCentralizada && <p className="text-xs text-slate-600 sm:col-span-2">{aviso}</p>}
           {bancarios.map(campo)}
         </Secao>}
         {erro && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{erro}</p>}
@@ -167,7 +165,6 @@ export function TechnicianDetails({ tecnico, onClose, onEdit, onDelete, mostrarB
       </Secao>
       {mostrarBancarios && <details className="rounded-xl border border-slate-200 p-3">
         <summary className="cursor-pointer text-sm font-bold">Dados Bancários</summary>
-        {!operacaoCentralizada && <p className="my-3 text-xs text-slate-600">{aviso}</p>}
         <div className="grid gap-3 sm:grid-cols-2">{bancarios.map(info)}</div>
       </details>}
     </div>

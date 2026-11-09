@@ -33,7 +33,8 @@ Prover aos engenheiros, biólogos, gestores, técnicos de campo e consultores am
 | **Cálculo Geodésico** | Proj4 | Conversão precisa de Graus Decimais (WGS84) para Projeção UTM (Fuso e Hemisfério automáticos) |
 | **Processamento Gráfico** | HTML5 Canvas API | Carimbo indelével e incorporação da legenda oficial sobre as fotos |
 | **Geolocalização** | Web Geolocation API (`watchPosition`) | Monitoramento contínuo da posição do técnico em campo e precisão |
-| **Persistência Local** | IndexedDB (`idb`) | Armazenamento desacoplado em repositórios (sem limite de 5MB do localStorage) |
+| **Persistência** | Supabase PostgreSQL e Storage | Fonte oficial dos cadastros, registros técnicos e arquivos |
+| **Legado do dispositivo** | IndexedDB (`idb`) | Inventário, backup e limpeza seletiva administrativa |
 
 ---
 
@@ -79,7 +80,7 @@ Delta CorteX/
 │   ├── hooks/
 │   │   └── useGeolocation.ts  # Hook de GPS contínuo e encerramento de watchPosition
 │   ├── services/
-│   │   ├── storage.ts         # Camada de repositórios IndexedDB desacoplada
+│   │   ├── storage.ts         # Leitura e limpeza seletiva do IndexedDB legado
 │   │   ├── utm.ts             # Conversão geodésica WGS84 -> UTM com Proj4
 │   │   ├── photoStamper.ts    # Carimbo indelével Canvas nas fotos de campo
 │   │   └── validation.ts      # Validações reais de CPF, CNPJ, e-mail e máscaras
@@ -164,7 +165,7 @@ NEXT_PUBLIC_MAPTILER_KEY=sua_chave_maptiler_aqui
 
 ## 8. PERSISTÊNCIA E ARMAZENAMENTO
 
-Clientes consulta o Supabase. Projetos, Corpo Técnico e Trabalho de Campo usam a integração operacional após a aplicação da migration e a ativação no build. O IndexedDB preserva os dados anteriores por navegador e origem, com exportação administrativa.
+Clientes, Projetos, Corpo Técnico, Trabalho de Campo, arquivos geográficos, fotografias e relatórios usam o Supabase em desenvolvimento e produção. O IndexedDB preserva os dados anteriores por navegador e origem para recuperação administrativa.
 
 ## 9. MODELO E ATIVAÇÃO DO SUPABASE
 
@@ -202,13 +203,13 @@ Configure estas variáveis no arquivo local `.env.local` ou `.env` ignorado pelo
 
 No Supabase Auth, mantenha o cadastro público desativado e provisione as contas autorizadas. Confira se as URLs de redirecionamento incluem `https://delta-cortex.vercel.app/auth/callback` e o endereço local usado no desenvolvimento, por exemplo `http://127.0.0.1:3000/auth/callback`. Com o modelo padrão de e-mail e PKCE, abra o link no mesmo navegador que solicitou a recuperação. Se houver um modelo personalizado, o callback aceita também o token de recuperação no formato `token_hash` com `type=recovery`. Configure SMTP no Supabase se necessário para o envio aos usuários.
 
-O login protege a entrada da aplicação. Os módulos locais continuam no IndexedDB, por navegador e origem, compartilhados entre contas que usam o mesmo perfil de navegador.
+O login protege a entrada da aplicação. O painel de legado verifica no servidor a sessão e o papel de administrador ativo antes de inventariar, exportar ou limpar os registros antigos do dispositivo.
 
 ## Clientes no Supabase
 
 Clientes usa exclusivamente `public.clientes` no Supabase em desenvolvimento e produção. Configure `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` em `.env.local` e na Vercel. A tela indica a fonte e apresenta erros de configuração, conexão ou permissão. Os clientes anteriores permanecem no IndexedDB.
 
-Projetos, Corpo Técnico e Trabalho de Campo têm repositórios Supabase preparados. A ativação depende da migration operacional e de `NEXT_PUBLIC_OPERACAO_SUPABASE=true` durante o build. Consulte o [roteiro de centralização](supabase/README.md) antes da publicação. Os dados locais podem ser inventariados e exportados por um administrador ativo.
+A migration operacional já foi aplicada no projeto publicado, conforme confirmação do responsável. A variável `NEXT_PUBLIC_OPERACAO_SUPABASE` deixou de ser usada. Consulte o [procedimento de revisão do legado](supabase/README.md) para exportar um ZIP e limpar exemplos originais selecionados.
 
 O serviço consulta `public.acessos_usuarios` pelo `user_id` da sessão verificada, exige `ativo = true` e interpreta `papel` como `admin`, `editor` ou `leitor`. Admin e editor podem gravar, e leitor pode consultar. A interface reflete o papel, enquanto as políticas RLS existentes autorizam as operações no banco. A exclusão atualiza `excluido_em` e exige a confirmação de uma linha afetada.
 

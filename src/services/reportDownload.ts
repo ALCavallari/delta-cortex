@@ -2,7 +2,7 @@ import { RelatorioVisita } from '@/types';
 
 export function baixarRelatorio(relatorio: RelatorioVisita) {
   if (!(relatorio.pdf instanceof Blob) || !relatorio.pdf.size) {
-    throw new Error('O PDF salvo não está disponível no armazenamento local.');
+    throw new Error('O PDF salvo não está disponível para download.');
   }
   const url = URL.createObjectURL(relatorio.pdf);
   const link = document.createElement('a');

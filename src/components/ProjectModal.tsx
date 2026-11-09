@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Projeto, Cliente } from '@/types';
-import { operacaoCentralizada, ProjetoRepository, VisitaRepository } from '@/services/repositoriosOperacionais';
+import { ProjetoRepository, VisitaRepository } from '@/services/repositoriosOperacionais';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -212,14 +212,10 @@ export function ProjectModal({
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
                   <div className="flex items-center gap-2 font-semibold">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>{operacaoCentralizada ? 'Nenhum contratante ativo disponível' : 'Nenhum cliente disponível no cadastro local'}</span>
+                    <span>Nenhum contratante ativo disponível</span>
                   </div>
                   <p>
-                    {operacaoCentralizada
-                      ? 'Cadastre ou verifique um contratante ativo no módulo Clientes.'
-                      : projectToEdit?.clienteId
-                      ? 'O vínculo histórico será mantido. Novos vínculos dependem de um cliente disponível localmente.'
-                      : 'Projetos ainda usa o cadastro local. Clientes cadastrados no Supabase ficam disponíveis para novos vínculos após a migração de Projetos.'}
+                    Cadastre ou verifique um contratante ativo no módulo Clientes.
                   </p>
                 </div>
               ) : (
@@ -252,7 +248,7 @@ export function ProjectModal({
                   >
                     <option value="">Selecione um cliente contratante...</option>
                     {projectToEdit?.clienteId && !clientes.some((c) => c.id === projectToEdit.clienteId) && (
-                      <option value={projectToEdit.clienteId}>Manter vínculo histórico (cliente indisponível localmente)</option>
+                      <option value={projectToEdit.clienteId}>Manter vínculo histórico (cliente inativo ou indisponível)</option>
                     )}
                     {clientesFiltrados.map((c) => (
                       <option key={c.id} value={c.id}>

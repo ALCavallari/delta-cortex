@@ -6,7 +6,7 @@ import { descricoesModulos } from '@/services/moduleDescriptions';
 import { BotaoAcaoCadastro } from '@/components/RegistrationActionButton';
 import { Header } from '@/components/Header';
 import { TechnicianDetails, TechnicianDialog, TechnicianForm, WhatsAppTecnico, botaoNeutro, botaoPrincipal } from '@/components/TechnicianModal';
-import { operacaoCentralizada, ProfissionalRepository } from '@/services/repositoriosOperacionais';
+import { ProfissionalRepository } from '@/services/repositoriosOperacionais';
 import { ClienteSupabaseRepository } from '@/services/clientesSupabase';
 import { limparCaracteres } from '@/services/validation';
 import { normalizarBusca } from '@/services/technicians';
@@ -26,11 +26,11 @@ export default function CorpoTecnicoPage() {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ texto: string; erro?: boolean } | null>(null);
   const [recarregar, setRecarregar] = useState(0);
-  const [mostrarBancarios, setMostrarBancarios] = useState(!operacaoCentralizada);
+  const [mostrarBancarios, setMostrarBancarios] = useState(false);
 
   useEffect(() => {
     let ativo = true;
-    const acesso = operacaoCentralizada ? ClienteSupabaseRepository.obterAcesso() : Promise.resolve('admin');
+    const acesso = ClienteSupabaseRepository.obterAcesso();
     void acesso.then(async papel => ({
       admin: papel === 'admin',
       lista: papel === 'admin' ? await ProfissionalRepository.listarComDadosBancarios() : await ProfissionalRepository.listar(),

@@ -3,22 +3,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileDown, Mail, MessageCircle, Share2, X } from 'lucide-react';
 import { RelatorioVisita } from '@/types';
-import { operacaoCentralizada, RelatorioRepository } from '@/services/repositoriosOperacionais';
+import { RelatorioRepository } from '@/services/repositoriosOperacionais';
 import { baixarRelatorio } from '@/services/reportDownload';
 
 const titulo = 'Relatório de Acompanhamento Sistemático';
 const indisponivel = 'Não foi possível localizar o arquivo PDF deste relatório.';
 
-export function ShareReportModal({ visitaId, projeto, data, onClose }: {
-  visitaId: string; projeto: string; data: string; onClose: () => void;
+export function ShareReportModal({ visitaId, onClose }: {
+  visitaId: string; onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [versoes, setVersoes] = useState<RelatorioVisita[]>([]);
   const [preparado, setPreparado] = useState<{ relatorio: RelatorioVisita; arquivo: File; nativo: boolean }>();
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const assunto = operacaoCentralizada ? titulo : `${titulo} - ${projeto}`;
-  const mensagem = operacaoCentralizada ? 'Segue o relatório em anexo.' : `Segue o ${titulo} referente ao projeto ${projeto}, realizado em ${data}.`;
+  const assunto = titulo;
+  const mensagem = 'Segue o relatório em anexo.';
   const botao = 'inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50';
 
   useEffect(() => {

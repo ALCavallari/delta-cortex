@@ -15,7 +15,6 @@ import {
   ClienteRepository,
   ProjetoRepository,
   ProfissionalRepository,
-  operacaoCentralizada,
 } from '@/services/repositoriosOperacionais';
 import {
   Plus,
@@ -146,7 +145,7 @@ export default function AcompanhamentoDashboardPage() {
     try {
       const proj = projetos.find((p) => p.id === projetoVinculoSelecionado);
       if (!proj) return;
-      await VisitaRepository.vincularProjeto(visitaParaVincular.id, proj.id);
+      await VisitaRepository.vincularProjeto();
 
       showToast(`Visita vinculada com sucesso ao projeto "${proj.nome}".`);
       setVisitaParaVincular(null);
@@ -613,7 +612,7 @@ export default function AcompanhamentoDashboardPage() {
               Trabalhos de Campo Cadastrados
             </h2>
             <span className="text-xs text-slate-500 hidden sm:inline">
-              {operacaoCentralizada ? 'Fonte de dados: Supabase' : 'Registros locais armazenados no dispositivo'}
+              Fonte de dados: Supabase
             </span>
           </div>
 
@@ -789,8 +788,7 @@ export default function AcompanhamentoDashboardPage() {
         </>}
       </main>
       {visitaCompartilhada && <ShareReportModal key={visitaCompartilhada.id}
-        visitaId={visitaCompartilhada.id} projeto={visitaCompartilhada.identificacaoProjeto || visitaCompartilhada.clienteNome}
-        data={formatarDataBR(visitaCompartilhada.data)} onClose={() => setVisitaCompartilhada(null)} />}
+        visitaId={visitaCompartilhada.id} onClose={() => setVisitaCompartilhada(null)} />}
 
       {/* Modal Novo Trabalho */}
       <NewVisitModal
@@ -849,7 +847,7 @@ export default function AcompanhamentoDashboardPage() {
                     Visitas Excluídas
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Restaure visitas e seus registros preservados no armazenamento local
+                    Restaure visitas e seus registros preservados no Supabase
                   </p>
                 </div>
               </div>
