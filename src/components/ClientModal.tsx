@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   X,
   User,
   Building2,
   AlertCircle,
   Save,
-  CheckCircle2,
 } from 'lucide-react';
 import { Cliente, TipoPessoa } from '@/types';
 import {
@@ -21,82 +20,39 @@ import {
   formatarTelefone,
   limparCaracteres,
 } from '@/services/validation';
-import { ClienteRepository } from '@/services/storage';
+import { ClienteRepositoryModulo } from '@/services/clientesModulo';
+import { mensagemClientes } from '@/services/clientesSupabase';
 
 interface ClientModalProps {
-  isOpen: boolean;
   onClose: () => void;
   onSaved: (cliente: Cliente) => void;
   clienteParaEdicao?: Cliente | null;
 }
 
 export function ClientModal({
-  isOpen,
   onClose,
   onSaved,
   clienteParaEdicao,
 }: ClientModalProps) {
-  const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>('PJ');
-  const [nomeRazaoSocial, setNomeRazaoSocial] = useState('');
-  const [cpfCnpj, setCpfCnpj] = useState('');
-  const [cep, setCep] = useState('');
-  const [logradouro, setLogradouro] = useState('');
-  const [numero, setNumero] = useState('');
-  const [complemento, setComplemento] = useState('');
-  const [bairro, setBairro] = useState('');
-  const [cidade, setCidade] = useState('');
-  const [estado, setEstado] = useState('PR');
-  const [inscricaoEstadual, setInscricaoEstadual] = useState('');
-  const [telefone, setTelefone] = useState('');
-  const [email, setEmail] = useState('');
-  const [responsavel, setResponsavel] = useState('');
-  const [cargo, setCargo] = useState('');
+  const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa>(clienteParaEdicao?.tipoPessoa ?? 'PJ');
+  const [nomeRazaoSocial, setNomeRazaoSocial] = useState(clienteParaEdicao?.nomeRazaoSocial ?? '');
+  const [cpfCnpj, setCpfCnpj] = useState(clienteParaEdicao?.cpfCnpj ?? '');
+  const [cep, setCep] = useState(clienteParaEdicao?.cep ?? '');
+  const [logradouro, setLogradouro] = useState(clienteParaEdicao?.logradouro ?? '');
+  const [numero, setNumero] = useState(clienteParaEdicao?.numero ?? '');
+  const [complemento, setComplemento] = useState(clienteParaEdicao?.complemento ?? '');
+  const [bairro, setBairro] = useState(clienteParaEdicao?.bairro ?? '');
+  const [cidade, setCidade] = useState(clienteParaEdicao?.cidade ?? '');
+  const [estado, setEstado] = useState(clienteParaEdicao?.estado ?? 'PR');
+  const [inscricaoEstadual, setInscricaoEstadual] = useState(clienteParaEdicao?.inscricaoEstadual ?? '');
+  const [telefone, setTelefone] = useState(clienteParaEdicao?.telefone ?? '');
+  const [email, setEmail] = useState(clienteParaEdicao?.email ?? '');
+  const [responsavel, setResponsavel] = useState(clienteParaEdicao?.responsavel ?? '');
+  const [cargo, setCargo] = useState(clienteParaEdicao?.cargo ?? '');
 
   const [erros, setErros] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState(false);
   const [erroGeral, setErroGeral] = useState<string | null>(null);
-
-  // Preenche dados se for edição
-  useEffect(() => {
-    if (clienteParaEdicao) {
-      setTipoPessoa(clienteParaEdicao.tipoPessoa);
-      setNomeRazaoSocial(clienteParaEdicao.nomeRazaoSocial);
-      setCpfCnpj(clienteParaEdicao.cpfCnpj);
-      setCep(clienteParaEdicao.cep);
-      setLogradouro(clienteParaEdicao.logradouro);
-      setNumero(clienteParaEdicao.numero);
-      setComplemento(clienteParaEdicao.complemento || '');
-      setBairro(clienteParaEdicao.bairro);
-      setCidade(clienteParaEdicao.cidade);
-      setEstado(clienteParaEdicao.estado);
-      setInscricaoEstadual(clienteParaEdicao.inscricaoEstadual || '');
-      setTelefone(clienteParaEdicao.telefone);
-      setEmail(clienteParaEdicao.email);
-      setResponsavel(clienteParaEdicao.responsavel);
-      setCargo(clienteParaEdicao.cargo);
-    } else {
-      // Reset para novo cadastro
-      setTipoPessoa('PJ');
-      setNomeRazaoSocial('');
-      setCpfCnpj('');
-      setCep('');
-      setLogradouro('');
-      setNumero('');
-      setComplemento('');
-      setBairro('');
-      setCidade('');
-      setEstado('PR');
-      setInscricaoEstadual('');
-      setTelefone('');
-      setEmail('');
-      setResponsavel('');
-      setCargo('');
-    }
-    setErros({});
-    setErroGeral(null);
-  }, [clienteParaEdicao, isOpen]);
-
-  if (!isOpen) return null;
 
   const handleTipoChange = (novoTipo: TipoPessoa) => {
     setTipoPessoa(novoTipo);
@@ -142,14 +98,6 @@ export function ClientModal({
       }
     }
 
-    // Verificar duplicidade de CPF/CNPJ
-    const clienteExistente = await ClienteRepository.buscarPorCpfCnpj(cpfCnpj);
-    if (clienteExistente && clienteExistente.id !== clienteParaEdicao?.id) {
-      novosErros.cpfCnpj = `Já existe um cliente cadastrado com este ${
-        tipoPessoa === 'PF' ? 'CPF' : 'CNPJ'
-      } (${clienteExistente.nomeRazaoSocial}).`;
-    }
-
     if (!cidade.trim()) {
       novosErros.cidade = 'Cidade é obrigatória.';
     }
@@ -178,12 +126,20 @@ export function ClientModal({
       novosErros.cargo = 'Função / Cargo do responsável é obrigatório.';
     }
 
+    if (Object.keys(novosErros).length === 0) {
+      const existente = await ClienteRepositoryModulo.buscarPorCpfCnpj(cpfCnpj);
+      if (existente && existente.id !== clienteParaEdicao?.id) {
+        novosErros.cpfCnpj = 'Já existe um cliente cadastrado com este CPF ou CNPJ.';
+      }
+    }
+
     setErros(novosErros);
     return Object.keys(novosErros).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (salvando) return;
     setErroGeral(null);
 
     try {
@@ -216,12 +172,11 @@ export function ClientModal({
         atualizadoEm: agora,
       };
 
-      await ClienteRepository.salvar(clienteSalvar);
-      onSaved(clienteSalvar);
+      const confirmado = await ClienteRepositoryModulo.salvar(clienteSalvar, !!clienteParaEdicao);
+      onSaved(confirmado);
       onClose();
-    } catch (err: any) {
-      console.error('Erro ao salvar cliente:', err);
-      setErroGeral(err?.message || 'Ocorreu um erro ao gravar o cliente no armazenamento local.');
+    } catch (erro) {
+      setErroGeral(mensagemClientes(erro, 'Não foi possível gravar o cliente. Tente novamente.'));
     } finally {
       setSalvando(false);
     }

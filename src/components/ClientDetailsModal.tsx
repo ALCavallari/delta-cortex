@@ -19,7 +19,7 @@ interface ClientDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDelete?: (cliente: Cliente) => void;
-  onEdit: (cliente: Cliente) => void;
+  onEdit?: (cliente: Cliente) => void;
 }
 
 export function ClientDetailsModal({
@@ -159,10 +159,10 @@ export function ClientDetailsModal({
           >
             Fechar
           </button>
-          <BotaoAcaoCadastro acao="editar" rotulo="Editar cliente" onClick={() => {
+          {onEdit && <BotaoAcaoCadastro acao="editar" rotulo="Editar cliente" onClick={() => {
               onClose();
               onEdit(cliente);
-            }} />
+            }} />}
         </div>
       </div>
     </div>

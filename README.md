@@ -227,3 +227,20 @@ Configure estas variáveis no arquivo local `.env.local` ou `.env` ignorado pelo
 No Supabase Auth, mantenha o cadastro público desativado e provisione as contas autorizadas. Confira se as URLs de redirecionamento incluem `https://delta-cortex.vercel.app/auth/callback` e o endereço local usado no desenvolvimento, por exemplo `http://127.0.0.1:3000/auth/callback`. Com o modelo padrão de e-mail e PKCE, abra o link no mesmo navegador que solicitou a recuperação. Se houver um modelo personalizado, o callback aceita também o token de recuperação no formato `token_hash` com `type=recovery`. Configure SMTP no Supabase se necessário para o envio aos usuários.
 
 O login protege a entrada da aplicação. Os cadastros continuam no IndexedDB, por navegador e origem, compartilhados entre contas que usam o mesmo perfil de navegador.
+
+## Clientes no Supabase (desenvolvimento)
+
+Em `.env.local`, configure as variáveis de autenticação já descritas e adicione `NEXT_PUBLIC_CLIENTES_SUPABASE=true`. Reinicie `npm run dev`. A tela Clientes indica sua fonte. Sem o sinalizador ou em builds de produção, a tela usa IndexedDB. Projetos e Trabalho de Campo continuam usando o repositório local, independentemente do sinalizador. Falhas de consulta remota são exibidas na tela e a consulta permanece remota.
+
+O serviço consulta `public.acessos_usuarios` pelo `user_id` da sessão verificada, exige `ativo = true` e interpreta `papel` como `admin`, `editor` ou `leitor`. Admin e editor podem gravar, e leitor pode consultar. A interface reflete o papel, enquanto as políticas RLS existentes autorizam as operações no banco. A exclusão atualiza `excluido_em` e exige a confirmação de uma linha afetada.
+
+| Frontend | `public.clientes` |
+| --- | --- |
+| `tipoPessoa`, `nomeRazaoSocial`, `cpfCnpj` | `tipo_pessoa`, `nome_razao_social`, `cpf_cnpj` |
+| `inscricaoEstadual` | `inscricao_estadual` |
+| `criadoEm`, `atualizadoEm`, `deletedAt` | `criado_em`, `atualizado_em`, `excluido_em` |
+| `id`, `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `telefone`, `email`, `responsavel`, `cargo` | Mesmos nomes |
+
+IDs continuam em texto. Datas mantêm o horário informado pelo banco. Campos opcionais nulos são apresentados vazios no formulário. A listagem percorre páginas por ID, e a restrição documental do banco cobre gravações concorrentes. Esta integração utiliza as tabelas e as políticas já existentes. O SQL original, quando disponível, deve ficar como documentação histórica e não como migration pendente.
+
+Para validar, entre com uma conta autorizada em desenvolvimento, confirme a indicação Supabase, cadastre um cliente de teste, recarregue, pesquise pelo documento, edite e confirme a exclusão lógica. Teste também um documento duplicado, uma conta leitora e uma conta inativa. Use dados de teste e confirme os papéis e a política de exclusão no banco. Ao migrar Projetos, preserve os IDs de clientes e mapeie os vínculos locais antes de ativar a fonte remota em produção.

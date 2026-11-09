@@ -8,15 +8,14 @@ import { Header } from '@/components/Header';
 import { ClientModal } from '@/components/ClientModal';
 import { ClientDetailsModal } from '@/components/ClientDetailsModal';
 import { Cliente, TipoPessoa } from '@/types';
-import { ClienteRepository, inicializarDadosSeNecessario } from '@/services/storage';
+import { ClienteRepositoryModulo, clientesNoSupabase } from '@/services/clientesModulo';
+import { mensagemClientes, type PerfilClientes } from '@/services/clientesSupabase';
 import { limparCaracteres } from '@/services/validation';
 import {
   Plus,
   Search,
   Building2,
   User,
-  Filter,
-  ArrowUpDown,
   CheckCircle2,
   Users,
   MapPin,
@@ -27,6 +26,10 @@ import {
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [perfil, setPerfil] = useState<PerfilClientes | null>(clientesNoSupabase ? null : 'admin');
+  const [tentativa, setTentativa] = useState(0);
+  const [erroConsulta, setErroConsulta] = useState<string | null>(null);
+  const podeEditar = !erroConsulta && (perfil === 'admin' || perfil === 'editor');
 
   // Filtros e ordenação
   const [busca, setBusca] = useState('');
@@ -42,22 +45,24 @@ export default function ClientesPage() {
   const [clienteParaExcluir, setParaExcluir] = useState<Cliente | null>(null);
   const [mensagemSucesso, setMensagemSucesso] = useState<string | null>(null);
 
-  const carregarClientes = async () => {
-    try {
-      setCarregando(true);
-      await inicializarDadosSeNecessario();
-      const lista = await ClienteRepository.listar();
-      setClientes(lista);
-    } catch (err) {
-      console.error('Erro ao carregar clientes:', err);
-    } finally {
-      setCarregando(false);
-    }
-  };
-
   useEffect(() => {
-    carregarClientes();
-  }, []);
+    let ativo = true;
+    void ClienteRepositoryModulo.obterAcesso().then(async acesso => ({
+      acesso, lista: await ClienteRepositoryModulo.listar(),
+    })).then(({ acesso, lista }) => {
+      if (!ativo) return;
+      setPerfil(acesso);
+      setClientes(lista);
+    }).catch(erro => {
+      if (!ativo) return;
+      setPerfil(null);
+      setClientes([]);
+      setErroConsulta(mensagemClientes(erro, 'Não foi possível carregar os clientes. Tente novamente.'));
+    }).finally(() => {
+      if (ativo) setCarregando(false);
+    });
+    return () => { ativo = false; };
+  }, [tentativa]);
 
   const showToast = (msg: string) => {
     setMensagemSucesso(msg);
@@ -67,7 +72,9 @@ export default function ClientesPage() {
   };
 
   const handleClienteSalvo = (cliente: Cliente) => {
-    carregarClientes();
+    setClientes(lista => lista.some(item => item.id === cliente.id)
+      ? lista.map(item => item.id === cliente.id ? cliente : item)
+      : [...lista, cliente]);
     showToast(
       clienteEmEdicao
         ? `Cliente "${cliente.nomeRazaoSocial}" atualizado com sucesso!`
@@ -76,11 +83,13 @@ export default function ClientesPage() {
   };
 
   const abrirEdicao = (cliente: Cliente) => {
+    if (!podeEditar) return;
     setClienteEmEdicao(cliente);
     setModalCadastroAberto(true);
   };
 
   const abrirNovo = () => {
+    if (!podeEditar) return;
     setClienteEmEdicao(null);
     setModalCadastroAberto(true);
   };
@@ -108,9 +117,6 @@ export default function ClientesPage() {
       result = result.filter((c) => c.tipoPessoa === filtroTipo);
     }
 
-    // Filtro estado
-
-
     // Ordenação
     result.sort((a, b) => {
       if (ordenacao === 'nome-asc') {
@@ -136,7 +142,7 @@ export default function ClientesPage() {
         subtitle={descricoesModulos.clientes}
         backHref="/dashboard"
         backLabel="Menu Principal"
-        action={
+        action={podeEditar ? (
           <button
             onClick={abrirNovo}
             className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-xs sm:text-sm"
@@ -144,7 +150,7 @@ export default function ClientesPage() {
             <Plus className="w-4 h-4" />
             <span>Novo Cliente</span>
           </button>
-        }
+        ) : undefined}
       />
 
       {/* Toast de Sucesso */}
@@ -165,9 +171,13 @@ export default function ClientesPage() {
             <p className="text-sm text-slate-500">
               {descricoesModulos.clientes}
             </p>
+            <p className="mt-1 text-xs text-slate-600">
+              Fonte: {clientesNoSupabase ? 'Supabase' : 'IndexedDB local'}
+              {clientesNoSupabase && perfil === 'leitor' && ' · Somente leitura'}
+            </p>
           </div>
 
-          <div className="sm:hidden">
+          {podeEditar && <div className="sm:hidden">
             <button
               onClick={abrirNovo}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] transition-all shadow-md text-sm"
@@ -175,7 +185,7 @@ export default function ClientesPage() {
               <Plus className="w-4 h-4" />
               <span>+ Novo Cliente</span>
             </button>
-          </div>
+          </div>}
         </div>
 
         {/* Barra de Filtros e Pesquisa */}
@@ -197,7 +207,7 @@ export default function ClientesPage() {
             <div className="md:col-span-3">
               <select
                 value={filtroTipo}
-                onChange={(e) => setFiltroTipo(e.target.value as any)}
+                onChange={(e) => setFiltroTipo(e.target.value as typeof filtroTipo)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:border-[#00AFF0] focus:ring-2 focus:ring-blue-100 bg-white text-slate-700"
               >
                 <option value="TODOS">Todos os Tipos</option>
@@ -210,7 +220,7 @@ export default function ClientesPage() {
             <div className="md:col-span-3">
               <select
                 value={ordenacao}
-                onChange={(e) => setOrdenacao(e.target.value as any)}
+                onChange={(e) => setOrdenacao(e.target.value as typeof ordenacao)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:border-[#00AFF0] focus:ring-2 focus:ring-blue-100 bg-white text-slate-700"
               >
                 <option value="data-desc">Cadastro: Mais Recentes</option>
@@ -245,8 +255,14 @@ export default function ClientesPage() {
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center">
             <div className="w-10 h-10 border-4 border-[#00AFF0] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-sm font-medium text-slate-600">
-              Carregando clientes do armazenamento local...
+              Carregando clientes…
             </p>
+          </div>
+        ) : erroConsulta ? (
+          <div role="alert" className="space-y-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <p>{erroConsulta}</p>
+            <button type="button" className="rounded-lg border border-red-300 px-3 py-2 font-semibold"
+              onClick={() => { setErroConsulta(null); setCarregando(true); setTentativa(valor => valor + 1); }}>Tentar novamente</button>
           </div>
         ) : clientesFiltrados.length === 0 ? (
           /* Estado Vazio */
@@ -261,10 +277,10 @@ export default function ClientesPage() {
             </h3>
             <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
               {clientes.length === 0
-                ? 'Cadastre o primeiro cliente da Delta S Engenharia para associá-lo a visitas de campo e relatórios.'
+                ? (podeEditar ? 'Cadastre o primeiro cliente.' : 'Nenhum cliente disponível para consulta.')
                 : 'Tente alterar os termos da busca ou redefinir os filtros selecionados.'}
             </p>
-            {clientes.length === 0 && (
+            {podeEditar && clientes.length === 0 && (
               <button
                 onClick={abrirNovo}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] transition-all shadow-md text-sm"
@@ -352,8 +368,8 @@ export default function ClientesPage() {
                         <td className="py-4 px-4 whitespace-nowrap text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <BotaoAcaoCadastro acao="visualizar" onClick={() => setClienteDetalhes(cliente)} />
-                            <BotaoAcaoCadastro acao="editar" onClick={() => abrirEdicao(cliente)} />
-                            <BotaoAcaoCadastro acao="excluir" rotulo="Excluir cliente" onClick={() => setParaExcluir(cliente)} />
+                            {podeEditar && <BotaoAcaoCadastro acao="editar" onClick={() => abrirEdicao(cliente)} />}
+                            {podeEditar && <BotaoAcaoCadastro acao="excluir" rotulo="Excluir cliente" onClick={() => setParaExcluir(cliente)} />}
                           </div>
                         </td>
                       </tr>
@@ -423,8 +439,8 @@ export default function ClientesPage() {
                   {/* Ações Inferiores no Card */}
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-1.5">
                     <BotaoAcaoCadastro acao="visualizar" onClick={() => setClienteDetalhes(cliente)} />
-                    <BotaoAcaoCadastro acao="editar" onClick={() => abrirEdicao(cliente)} />
-                    <BotaoAcaoCadastro acao="excluir" rotulo="Excluir cliente" onClick={() => setParaExcluir(cliente)} />
+                    {podeEditar && <BotaoAcaoCadastro acao="editar" onClick={() => abrirEdicao(cliente)} />}
+                    {podeEditar && <BotaoAcaoCadastro acao="excluir" rotulo="Excluir cliente" onClick={() => setParaExcluir(cliente)} />}
                   </div>
                 </div>
               ))}
@@ -434,23 +450,23 @@ export default function ClientesPage() {
       </main>
 
       {/* Modais */}
-      <ClientModal
-        isOpen={modalCadastroAberto}
+      {podeEditar && modalCadastroAberto && <ClientModal key={clienteEmEdicao?.id ?? 'novo'}
         onClose={() => setModalCadastroAberto(false)}
         onSaved={handleClienteSalvo}
         clienteParaEdicao={clienteEmEdicao}
-      />
+      />}
 
       <ClientDetailsModal
         cliente={clienteDetalhes}
         isOpen={!!clienteDetalhes}
         onClose={() => setClienteDetalhes(null)}
-        onDelete={item => { setClienteDetalhes(null); setParaExcluir(item); }}
-        onEdit={(cli) => abrirEdicao(cli)}
+        onDelete={podeEditar ? item => { setClienteDetalhes(null); setParaExcluir(item); } : undefined}
+        onEdit={podeEditar ? abrirEdicao : undefined}
       />
-      {clienteParaExcluir && <ConfirmarExclusaoCadastro tipo="Cliente" nome={clienteParaExcluir.nomeRazaoSocial}
+      {podeEditar && clienteParaExcluir && <ConfirmarExclusaoCadastro tipo="Cliente" nome={clienteParaExcluir.nomeRazaoSocial}
+        mensagemErro={erro => mensagemClientes(erro, 'Não foi possível excluir o cliente.')}
         onClose={() => setParaExcluir(null)} onConfirm={async () => {
-          await ClienteRepository.excluir(clienteParaExcluir.id);
+          await ClienteRepositoryModulo.excluir(clienteParaExcluir.id);
           setClientes(itens => itens.filter(item => item.id !== clienteParaExcluir.id));
           setParaExcluir(null);
           showToast('Cliente excluído.');
