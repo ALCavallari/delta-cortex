@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import Link from 'next/link';
 import { lerLinkGoogleMaps } from '@/services/googleMaps';
 import { ProjectGeographicFiles, type ArquivosGeograficosDraft } from './ProjectGeographicFiles';
 import { ProjectLocationFields, locationDraft, resolveLocation } from './ProjectLocationFields';
@@ -96,11 +95,8 @@ export function ProjectModal({
   const validar = (): boolean => {
     const novosErros: Record<string, string> = {};
 
-    if (!clienteId) {
-      novosErros.clienteId =
-        clientes.length === 0
-          ? 'Nenhum cliente cadastrado. Cadastre um cliente antes de criar um projeto.'
-          : 'Selecione o cliente contratante.';
+    if (!clienteId || (!clienteSelecionado && clienteId !== projectToEdit?.clienteId)) {
+      novosErros.clienteId = 'Selecione um cliente contratante disponível no cadastro local.';
     }
 
     if (!nome.trim()) {
@@ -216,17 +212,13 @@ export function ProjectModal({
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
                   <div className="flex items-center gap-2 font-semibold">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Nenhum cliente cadastrado no sistema</span>
+                    <span>Nenhum cliente disponível no cadastro local</span>
                   </div>
                   <p>
-                    É necessário cadastrar um cliente antes de cadastrar um projeto.
+                    {projectToEdit?.clienteId
+                      ? 'O vínculo histórico será mantido. Novos vínculos dependem de um cliente disponível localmente.'
+                      : 'Projetos ainda usa o cadastro local. Clientes cadastrados no Supabase ficam disponíveis para novos vínculos após a migração de Projetos.'}
                   </p>
-                  <Link
-                    href="/clientes"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00AFF0] text-white rounded-lg font-semibold hover:bg-[#0098d1] transition-colors"
-                  >
-                    <span>Ir para o Módulo Clientes</span>
-                  </Link>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -257,6 +249,9 @@ export function ProjectModal({
                     }`}
                   >
                     <option value="">Selecione um cliente contratante...</option>
+                    {projectToEdit?.clienteId && !clientes.some((c) => c.id === projectToEdit.clienteId) && (
+                      <option value={projectToEdit.clienteId}>Manter vínculo histórico (cliente indisponível localmente)</option>
+                    )}
                     {clientesFiltrados.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.nomeRazaoSocial} ({c.cpfCnpj}) — {c.cidade}/{c.estado}
@@ -345,7 +340,7 @@ export function ProjectModal({
               </button>
               <button
                 type="submit"
-                disabled={salvando || clientes.length === 0}
+                disabled={salvando || (clientes.length === 0 && !projectToEdit?.clienteId)}
                 className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-sm disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />

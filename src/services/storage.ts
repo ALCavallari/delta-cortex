@@ -380,7 +380,7 @@ export const ProjetoRepository = {
     remover: string[];
   }): Promise<void> {
     const db = await getDB();
-    const tx = db.transaction(['projetos', 'arquivos_geograficos'], 'readwrite');
+    const tx = db.transaction(['projetos', 'clientes', 'arquivos_geograficos'], 'readwrite');
     const conclusao = tx.done;
     // A falha de uma requisição também rejeita tx.done.
     void conclusao.catch(() => {});
@@ -388,6 +388,12 @@ export const ProjetoRepository = {
       const projetos = tx.objectStore('projetos');
       const atual = await projetos.get(projeto.id);
       if (atual?.deletedAt) throw new Error('Este cadastro foi excluído.');
+      if (!atual || atual.clienteId !== projeto.clienteId) {
+        const cliente = await tx.objectStore('clientes').get(projeto.clienteId);
+        if (!cliente || cliente.deletedAt) {
+          throw new Error('Selecione um cliente contratante disponível no cadastro local.');
+        }
+      }
       const camadas = tx.objectStore('arquivos_geograficos');
       for (const id of arquivos?.remover ?? []) {
         if ((await camadas.get(id))?.projetoId === projeto.id) await camadas.delete(id);
@@ -505,7 +511,7 @@ export const VisitaRepository = {
 
   async criar(dados: Omit<Visita, 'executorNome' | 'responsavelTecnicoNome'>): Promise<Visita> {
     const db = await getDB();
-    const tx = db.transaction(['visitas', 'profissionais'], 'readwrite');
+    const tx = db.transaction(['visitas', 'profissionais', 'projetos', 'clientes'], 'readwrite');
     const cadastro = tx.objectStore('profissionais');
     const [executor, responsavel] = await Promise.all([
       cadastro.get(dados.executorId), cadastro.get(dados.responsavelTecnicoId),
@@ -514,7 +520,19 @@ export const VisitaRepository = {
       const habilitados = (await cadastro.getAll()).some(p => p.habilitado === true && !p.deletedAt);
       throw new Error(habilitados ? 'O executor ou responsável técnico não está mais habilitado. Reabra o formulário e selecione novamente.' : SEM_TECNICOS);
     }
-    const visita = { ...dados, executorNome: executor.nome, responsavelTecnicoNome: responsavel.nome };
+    const projeto = dados.projetoId && await tx.objectStore('projetos').get(dados.projetoId);
+    if (!projeto || projeto.deletedAt) throw new Error('Selecione um projeto disponível no cadastro local.');
+    const cliente = await tx.objectStore('clientes').get(projeto.clienteId);
+    if (!cliente || cliente.deletedAt || cliente.id !== dados.clienteId) {
+      throw new Error('O contratante do projeto mudou ou está indisponível localmente. Revise o vínculo em Projetos.');
+    }
+    const visita = {
+      ...dados,
+      identificacaoProjeto: projeto.nome,
+      clienteNome: cliente.nomeRazaoSocial,
+      executorNome: executor.nome,
+      responsavelTecnicoNome: responsavel.nome,
+    };
     await tx.objectStore('visitas').add(visita);
     await tx.done;
     return visita;
@@ -554,21 +572,30 @@ export const VisitaRepository = {
 
   async vincularProjeto(
     visitaId: string,
-    projetoId: string,
-    identificacaoProjeto: string,
-    clienteId: string,
-    clienteNome: string
+    projetoId: string
   ): Promise<void> {
     const db = await getDB();
-    const visita = await db.get('visitas', visitaId);
-    if (visita) {
-      visita.projetoId = projetoId;
-      visita.identificacaoProjeto = identificacaoProjeto;
-      visita.clienteId = clienteId;
-      visita.clienteNome = clienteNome;
-      visita.atualizadoEm = new Date().toISOString();
-      await db.put('visitas', visita);
+    const tx = db.transaction(['visitas', 'projetos', 'clientes'], 'readwrite');
+    const visitas = tx.objectStore('visitas');
+    const visita = await visitas.get(visitaId);
+    if (!visita || visita.deletedAt || visita.projetoId) {
+      throw new Error('A visita não está mais disponível para vinculação.');
     }
+    const projeto = await tx.objectStore('projetos').get(projetoId);
+    if (!projeto || projeto.deletedAt) throw new Error('Selecione um projeto disponível no cadastro local.');
+    const cliente = await tx.objectStore('clientes').get(projeto.clienteId);
+    if (!cliente || cliente.deletedAt) {
+      throw new Error('O contratante deste projeto está indisponível no cadastro local. Revise o vínculo em Projetos.');
+    }
+    await visitas.put({
+      ...visita,
+      projetoId,
+      identificacaoProjeto: projeto.nome,
+      clienteId: cliente.id,
+      clienteNome: cliente.nomeRazaoSocial,
+      atualizadoEm: new Date().toISOString(),
+    });
+    await tx.done;
   },
 
   async atualizarStatus(id: string, status: Visita['status']): Promise<void> {

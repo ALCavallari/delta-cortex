@@ -8,7 +8,7 @@ import { Header } from '@/components/Header';
 import { ClientModal } from '@/components/ClientModal';
 import { ClientDetailsModal } from '@/components/ClientDetailsModal';
 import { Cliente, TipoPessoa } from '@/types';
-import { ClienteRepositoryModulo, clientesNoSupabase } from '@/services/clientesModulo';
+import { ClienteRepositoryModulo } from '@/services/clientesModulo';
 import { mensagemClientes, type PerfilClientes } from '@/services/clientesSupabase';
 import { limparCaracteres } from '@/services/validation';
 import {
@@ -26,7 +26,7 @@ import {
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [perfil, setPerfil] = useState<PerfilClientes | null>(clientesNoSupabase ? null : 'admin');
+  const [perfil, setPerfil] = useState<PerfilClientes | null>(null);
   const [tentativa, setTentativa] = useState(0);
   const [erroConsulta, setErroConsulta] = useState<string | null>(null);
   const podeEditar = !erroConsulta && (perfil === 'admin' || perfil === 'editor');
@@ -172,8 +172,8 @@ export default function ClientesPage() {
               {descricoesModulos.clientes}
             </p>
             <p className="mt-1 text-xs text-slate-600">
-              Fonte: {clientesNoSupabase ? 'Supabase' : 'IndexedDB local'}
-              {clientesNoSupabase && perfil === 'leitor' && ' · Somente leitura'}
+              Fonte de dados: Supabase
+              {perfil === 'leitor' && ' · Somente leitura'}
             </p>
           </div>
 

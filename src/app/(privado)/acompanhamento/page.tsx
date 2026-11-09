@@ -54,6 +54,7 @@ export default function AcompanhamentoDashboardPage() {
   const [visitaParaExcluir, setVisitaParaExcluir] = useState<Visita | null>(null);
   const [modalExcluidasAberto, setModalExcluidasAberto] = useState(false);
   const [visitaParaVincular, setVisitaParaVincular] = useState<Visita | null>(null);
+  const [erroVinculo, setErroVinculo] = useState('');
   const [projetoVinculoSelecionado, setProjetoVinculoSelecionado] = useState('');
 
   // Toast feedback
@@ -139,18 +140,11 @@ export default function AcompanhamentoDashboardPage() {
   // Vincular visita antiga a um projeto
   const handleSalvarVinculoProjeto = async () => {
     if (!visitaParaVincular || !projetoVinculoSelecionado) return;
+    setErroVinculo('');
     try {
       const proj = projetos.find((p) => p.id === projetoVinculoSelecionado);
       if (!proj) return;
-      const cli = clientes.find((c) => c.id === proj.clienteId);
-
-      await VisitaRepository.vincularProjeto(
-        visitaParaVincular.id,
-        proj.id,
-        proj.nome,
-        proj.clienteId,
-        cli?.nomeRazaoSocial || visitaParaVincular.clienteNome
-      );
+      await VisitaRepository.vincularProjeto(visitaParaVincular.id, proj.id);
 
       showToast(`Visita vinculada com sucesso ao projeto "${proj.nome}".`);
       setVisitaParaVincular(null);
@@ -158,7 +152,7 @@ export default function AcompanhamentoDashboardPage() {
       await carregarDados();
     } catch (err) {
       console.error('Erro ao vincular visita ao projeto:', err);
-      showToast('Falha ao vincular projeto à visita.');
+      setErroVinculo(err instanceof Error ? err.message : 'Falha ao vincular projeto à visita.');
     }
   };
 
@@ -710,6 +704,7 @@ export default function AcompanhamentoDashboardPage() {
                             type="button"
                             onClick={() => {
                               setVisitaParaVincular(visita);
+                              setErroVinculo('');
                               setProjetoVinculoSelecionado(projetos.length > 0 ? projetos[0].id : '');
                             }}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 text-[#00AFF0] hover:bg-blue-100 text-[11px] font-semibold transition-colors"
@@ -958,7 +953,10 @@ export default function AcompanhamentoDashboardPage() {
                   </label>
                   <select
                     value={projetoVinculoSelecionado}
-                    onChange={(e) => setProjetoVinculoSelecionado(e.target.value)}
+                    onChange={(e) => {
+                      setProjetoVinculoSelecionado(e.target.value);
+                      setErroVinculo('');
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white"
                   >
                     {projetos.map((p) => (
@@ -971,6 +969,9 @@ export default function AcompanhamentoDashboardPage() {
               </div>
             )}
 
+            {erroVinculo && (
+              <p role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-xs text-red-700">{erroVinculo}</p>
+            )}
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
               <button
                 type="button"

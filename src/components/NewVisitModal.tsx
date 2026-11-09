@@ -45,8 +45,6 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
   const [responsavelTecnicoId, setResponsavelTecnicoId] = useState('');
   const [projetoId, setProjetoId] = useState('');
   const [buscaProjeto, setBuscaProjeto] = useState('');
-  const [clienteId, setClienteId] = useState('');
-  const [identificacaoProjeto, setIdentificacaoProjeto] = useState('');
   const [dataVisita, setDataVisita] = useState('');
   const [vinculacaoAutomatica, setVinculacaoAutomatica] = useState(true);
   const [identificacao, setIdentificacao] = useState('');
@@ -74,14 +72,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
         setProfissionais(profs);
         setProjetos(projs);
 
-        if (projs.length > 0) {
-          const primeiro = projs[0];
-          setProjetoId(primeiro.id);
-          setIdentificacaoProjeto(primeiro.nome);
-          setClienteId(primeiro.clienteId);
-        } else if (clis.length > 0 && !clienteId) {
-          setClienteId(clis[0].id);
-        }
+        setProjetoId(projs[0]?.id ?? '');
 
         setExecutorId(profs[0]?.id ?? '');
         setResponsavelTecnicoId(profs[0]?.id ?? '');
@@ -149,11 +140,6 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
 
   const handleSelecionarProjeto = (projId: string) => {
     setProjetoId(projId);
-    const p = projetos.find((proj) => proj.id === projId);
-    if (p) {
-      setIdentificacaoProjeto(p.nome);
-      setClienteId(p.clienteId);
-    }
     if (erros.projetoId) setErros((prev) => ({ ...prev, projetoId: '' }));
   };
 
@@ -167,11 +153,13 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
         'As ferramentas para este motivo serão desenvolvidas em etapas futuras. Selecione "Visita Sistemática".';
     }
 
-    if (!projetoId) {
+    if (!projetoSelecionado) {
       novosErros.projetoId =
         projetos.length === 0
           ? 'Cadastre um projeto antes de iniciar uma visita.'
           : 'Selecione um projeto cadastrado para iniciar a visita.';
+    } else if (!clienteDoProjeto) {
+      novosErros.projetoId = 'O contratante deste projeto está indisponível no cadastro local. Revise o vínculo em Projetos antes de iniciar a visita.';
     }
 
     if (!profissionais.some(p => p.id === executorId)) {
@@ -198,24 +186,20 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
     e.preventDefault();
     setErroGeral(null);
 
-    if (!validar()) return;
+    if (!validar() || !projetoSelecionado || !clienteDoProjeto) return;
 
     try {
       setIniciando(true);
-      const projeto = projetos.find((p) => p.id === projetoId);
-      const cId = projeto?.clienteId || clienteId;
-      const cliente = clienteDoProjeto || mapaClientes.get(cId);
-
       const novaVisita = await VisitaRepository.criar({
         id: `vis-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         identificacao: identificacao.trim(),
         motivo,
         executorId,
         responsavelTecnicoId,
-        projetoId: projeto?.id,
-        identificacaoProjeto: projeto?.nome || identificacaoProjeto.trim(),
-        clienteId: cId,
-        clienteNome: cliente?.nomeRazaoSocial || 'Cliente Não Identificado',
+        projetoId: projetoSelecionado.id,
+        identificacaoProjeto: projetoSelecionado.nome,
+        clienteId: clienteDoProjeto.id,
+        clienteNome: clienteDoProjeto.nomeRazaoSocial,
         data: dataVisita,
         status: 'em_andamento',
         criadoEm: new Date().toISOString(),
@@ -229,9 +213,9 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
       onClose();
       // Redireciona imediatamente para a ferramenta operacional com mapa
       router.push(`/acompanhamento/visita/${novaVisita.id}`);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao iniciar visita:', err);
-      setErroGeral(err?.message || 'Falha ao salvar a visita no armazenamento local.');
+      setErroGeral(err instanceof Error ? err.message : 'Falha ao salvar a visita no armazenamento local.');
       setIniciando(false);
     }
   };
