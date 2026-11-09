@@ -4,7 +4,7 @@ import { BotaoAcaoCadastro } from '@/components/RegistrationActionButton';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { MessageCircle, X } from 'lucide-react';
 import type { Profissional } from '@/types';
-import { ProfissionalRepository } from '@/services/storage';
+import { operacaoCentralizada, ProfissionalRepository } from '@/services/repositoriosOperacionais';
 import { formatarCPF, formatarCNPJ, validarCPF, validarCNPJ, validarEmail } from '@/services/validation';
 import { mascaraContato, numeroWhatsApp } from '@/services/technicians';
 
@@ -17,7 +17,7 @@ type Campo = keyof typeof campos;
 const pessoais = ['nome', 'rg', 'cpf', 'cnpj'] as const;
 const contato = ['contato', 'email', 'endereco'] as const;
 const bancarios = ['chavePix', 'banco', 'agencia', 'contaCorrente'] as const;
-const aviso = 'Versão de demonstração: não armazene dados bancários reais.';
+const aviso = 'O armazenamento local deste navegador não deve ser usado para dados bancários reais.';
 const input = 'w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-[#00AFF0] focus:outline-hidden focus:ring-2 focus:ring-sky-100';
 export const botaoNeutro = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50';
 export const botaoPrincipal = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#00AFF0] px-4 py-2 text-sm font-semibold text-[#163340] hover:bg-sky-400 disabled:opacity-50';
@@ -50,8 +50,8 @@ export function TechnicianDialog({ titulo, onClose, ocupado = false, children }:
   </dialog>;
 }
 
-export function TechnicianForm({ tecnico, onClose, onSaved }: {
-  tecnico?: Profissional; onClose: () => void; onSaved: (p: Profissional) => void;
+export function TechnicianForm({ tecnico, onClose, onSaved, mostrarBancarios = false }: {
+  tecnico?: Profissional; onClose: () => void; onSaved: (p: Profissional) => void; mostrarBancarios?: boolean;
 }) {
   const [dados, setDados] = useState(() => ({
     ...Object.fromEntries(Object.keys(campos).map(k => [k, tecnico?.[k as Campo] ?? ''])) as Record<Campo, string>,
@@ -82,11 +82,10 @@ export function TechnicianForm({ tecnico, onClose, onSaved }: {
       criadoEm: tecnico ? tecnico.criadoEm : agora, atualizadoEm: agora,
     };
     try {
-      await ProfissionalRepository.salvar(cadastro);
-      onSaved(cadastro);
+      const confirmado = await ProfissionalRepository.salvar(cadastro, tecnico);
+      onSaved(confirmado ?? cadastro);
     } catch (e) {
-      setErro(e instanceof Error && (e.message.startsWith('Já existe um técnico') || e.message === 'Restaure o técnico antes de editar.')
-        ? e.message : 'Não foi possível salvar o técnico. Tente novamente.');
+      setErro(e instanceof Error ? e.message : 'Não foi possível salvar o técnico. Tente novamente.');
     } finally { setOcupado(false); }
   }
 
@@ -129,10 +128,10 @@ export function TechnicianForm({ tecnico, onClose, onSaved }: {
           </label>
           {campo('placaVeiculo')}
         </Secao>
-        <Secao titulo="Dados Bancários">
-          <p className="text-xs text-slate-600 sm:col-span-2">{aviso}</p>
+        {mostrarBancarios && <Secao titulo="Dados Bancários">
+          {!operacaoCentralizada && <p className="text-xs text-slate-600 sm:col-span-2">{aviso}</p>}
           {bancarios.map(campo)}
-        </Secao>
+        </Secao>}
         {erro && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{erro}</p>}
       </fieldset>
       <div className="sticky bottom-0 flex flex-wrap justify-end gap-2 border-t border-slate-200 bg-white p-4">
@@ -150,8 +149,8 @@ function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
   </section>;
 }
 
-export function TechnicianDetails({ tecnico, onClose, onEdit, onDelete }: {
-  tecnico: Profissional; onClose: () => void; onEdit: () => void; onDelete: () => void;
+export function TechnicianDetails({ tecnico, onClose, onEdit, onDelete, mostrarBancarios = false }: {
+  tecnico: Profissional; onClose: () => void; onEdit: () => void; onDelete: () => void; mostrarBancarios?: boolean;
 }) {
   const info = (k: Campo) => <div key={k} className="min-w-0">
     <p className="text-xs font-semibold text-slate-500">{campos[k]}</p>
@@ -166,11 +165,11 @@ export function TechnicianDetails({ tecnico, onClose, onEdit, onDelete }: {
         <div><p className="text-xs font-semibold text-slate-500">Habilitado</p><p>{tecnico.habilitado ? 'Sim' : 'Não'}</p></div>
         {info('placaVeiculo')}
       </Secao>
-      <details className="rounded-xl border border-slate-200 p-3">
+      {mostrarBancarios && <details className="rounded-xl border border-slate-200 p-3">
         <summary className="cursor-pointer text-sm font-bold">Dados Bancários</summary>
-        <p className="my-3 text-xs text-slate-600">{aviso}</p>
+        {!operacaoCentralizada && <p className="my-3 text-xs text-slate-600">{aviso}</p>}
         <div className="grid gap-3 sm:grid-cols-2">{bancarios.map(info)}</div>
-      </details>
+      </details>}
     </div>
     <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 p-4">
       <BotaoAcaoCadastro acao="excluir" onClick={onDelete} />

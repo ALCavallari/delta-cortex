@@ -6,7 +6,8 @@ import { descricoesModulos } from '@/services/moduleDescriptions';
 import { BotaoAcaoCadastro } from '@/components/RegistrationActionButton';
 import { Header } from '@/components/Header';
 import { TechnicianDetails, TechnicianDialog, TechnicianForm, WhatsAppTecnico, botaoNeutro, botaoPrincipal } from '@/components/TechnicianModal';
-import { ProfissionalRepository } from '@/services/storage';
+import { operacaoCentralizada, ProfissionalRepository } from '@/services/repositoriosOperacionais';
+import { ClienteSupabaseRepository } from '@/services/clientesSupabase';
 import { limparCaracteres } from '@/services/validation';
 import { normalizarBusca } from '@/services/technicians';
 import type { Profissional } from '@/types';
@@ -25,11 +26,20 @@ export default function CorpoTecnicoPage() {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [aviso, setAviso] = useState<{ texto: string; erro?: boolean } | null>(null);
   const [recarregar, setRecarregar] = useState(0);
+  const [mostrarBancarios, setMostrarBancarios] = useState(!operacaoCentralizada);
 
   useEffect(() => {
     let ativo = true;
-    void ProfissionalRepository.listar()
-      .then(lista => { if (ativo) setTecnicos(lista); })
+    const acesso = operacaoCentralizada ? ClienteSupabaseRepository.obterAcesso() : Promise.resolve('admin');
+    void acesso.then(async papel => ({
+      admin: papel === 'admin',
+      lista: papel === 'admin' ? await ProfissionalRepository.listarComDadosBancarios() : await ProfissionalRepository.listar(),
+    })).then(({ admin, lista }) => {
+      if (ativo) {
+        setMostrarBancarios(admin);
+        setTecnicos(lista);
+      }
+    })
       .catch(() => { if (ativo) setFalhaCarga(true); })
       .finally(() => { if (ativo) setCarregando(false); });
     return () => { ativo = false; };
@@ -133,12 +143,12 @@ export default function CorpoTecnicoPage() {
         </>}
     </main>
     {(modal?.tipo === 'novo' || modal?.tipo === 'editar') && <TechnicianForm key={modal.tipo === 'editar' ? modal.tecnico.id : 'novo'}
-      tecnico={modal.tipo === 'editar' ? modal.tecnico : undefined} onClose={fechar}
+      tecnico={modal.tipo === 'editar' ? modal.tecnico : undefined} onClose={fechar} mostrarBancarios={mostrarBancarios}
       onSaved={p => {
         setTecnicos(lista => lista.some(t => t.id === p.id) ? lista.map(t => t.id === p.id ? p : t) : [...lista, p]);
         setModal(null); setAviso({ texto: modal.tipo === 'novo' ? 'Técnico cadastrado com sucesso.' : 'Técnico atualizado com sucesso.' });
       }} />}
-    {modal?.tipo === 'detalhes' && <TechnicianDetails tecnico={modal.tecnico} onClose={fechar}
+    {modal?.tipo === 'detalhes' && <TechnicianDetails tecnico={modal.tecnico} onClose={fechar} mostrarBancarios={mostrarBancarios}
       onEdit={() => abrir({ tipo: 'editar', tecnico: modal.tecnico })} onDelete={() => abrir({ tipo: 'excluir', tecnico: modal.tecnico })} />}
     {modal?.tipo === 'excluir' && <TechnicianDialog titulo="Excluir Técnico" onClose={fechar} ocupado={!!ocupado}>
       <div className="space-y-4 p-5">

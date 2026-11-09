@@ -3,7 +3,7 @@
 import { useEffect, useEffectEvent, useRef, useState, type RefObject } from 'react';
 import { Layers3, MapPin } from 'lucide-react';
 import type L from 'leaflet';
-import { ArquivoGeograficoRepository, ProjetoRepository } from '@/services/storage';
+import { ArquivoGeograficoRepository, ProjetoRepository } from '@/services/repositoriosOperacionais';
 import type { ArquivoGeografico } from '@/types/geographic';
 import { iniciarCamadaGeografica, localizarLimites } from './geographicCanvasLayer';
 

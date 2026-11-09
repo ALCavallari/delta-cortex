@@ -2,13 +2,13 @@
 
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { ArquivoGeograficoRepository } from '@/services/storage';
+import { ArquivoGeograficoRepository } from '@/services/repositoriosOperacionais';
 import { criarWorkerGeografico } from '@/services/geographicWorker';
 import type { ArquivoGeografico, MetadadosGeograficos } from '@/types/geographic';
 
 type NovoArquivo = Omit<ArquivoGeografico, 'projetoId'>;
 export interface ArquivosGeograficosDraft {
-  alteracoes(): { adicionar: NovoArquivo[]; remover: string[] };
+  alteracoes(): { adicionar: NovoArquivo[]; remover: string[]; progresso: (id: string, valor: number) => void };
 }
 type Linha = {
   id: string;
@@ -29,6 +29,7 @@ export function ProjectGeographicFiles({ projetoId, desabilitado, ref }: {
 }) {
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [remover, setRemover] = useState<string[]>([]);
+  const [envios, setEnvios] = useState<Record<string, number>>({});
   const [falha, setFalha] = useState(false);
   const [carregando, setCarregando] = useState(!!projetoId);
   const input = useRef<HTMLInputElement>(null);
@@ -48,7 +49,11 @@ export function ProjectGeographicFiles({ projetoId, desabilitado, ref }: {
   useImperativeHandle(ref, () => ({
     alteracoes() {
       if (lote.current) throw new Error('Aguarde ou cancele o processamento dos arquivos geográficos.');
-      return { adicionar: linhas.flatMap(linha => !linha.existente && linha.arquivo ? [linha.arquivo] : []), remover };
+      return {
+        adicionar: linhas.flatMap(linha => !linha.existente && linha.arquivo ? [linha.arquivo] : []),
+        remover,
+        progresso: (id, valor) => setEnvios(atual => ({ ...atual, [id]: valor })),
+      };
     },
   }), [linhas, remover]);
 
@@ -110,6 +115,9 @@ export function ProjectGeographicFiles({ projetoId, desabilitado, ref }: {
           <p className="break-words font-semibold">{linha.nome}</p>
           <p className="text-xs text-slate-600">{linha.formato} · {(linha.tamanho / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} KiB</p>
           {linha.progresso !== undefined && <p role="status" className="text-xs text-slate-600">Processando · {linha.progresso}%</p>}
+          {desabilitado && envios[linha.id] !== undefined && <p role="status" className="text-xs text-slate-600">
+            {envios[linha.id] === 99 ? 'Aguardando confirmação do servidor…' : `Enviando · ${envios[linha.id]}%`}
+          </p>}
           {linha.erro && <p role="alert" className="text-xs text-red-700">{linha.erro}</p>}
           {linha.arquivo && <p className="text-xs text-emerald-800">
             Pronto · {total(linha.arquivo.metadados).toLocaleString('pt-BR')} elementos

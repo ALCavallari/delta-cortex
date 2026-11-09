@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Projeto, Cliente } from '@/types';
-import { ProjetoRepository, VisitaRepository } from '@/services/storage';
+import { operacaoCentralizada, ProjetoRepository, VisitaRepository } from '@/services/repositoriosOperacionais';
 
 interface ProjectModalProps {
   isOpen: boolean;
@@ -96,7 +96,7 @@ export function ProjectModal({
     const novosErros: Record<string, string> = {};
 
     if (!clienteId || (!clienteSelecionado && clienteId !== projectToEdit?.clienteId)) {
-      novosErros.clienteId = 'Selecione um cliente contratante disponível no cadastro local.';
+      novosErros.clienteId = 'Selecione um cliente contratante disponível.';
     }
 
     if (!nome.trim()) {
@@ -127,12 +127,12 @@ export function ProjectModal({
         atualizadoEm: agora,
       };
 
-      await ProjetoRepository.salvar(projetoSalvo, arquivosGeograficos.current?.alteracoes());
-      onProjectSaved(projetoSalvo);
+      const confirmado = await ProjetoRepository.salvar(projetoSalvo, arquivosGeograficos.current?.alteracoes(), projectToEdit ?? undefined);
+      onProjectSaved(confirmado ?? projetoSalvo);
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao salvar projeto:', err);
-      setErroGeral(err?.message || 'Falha ao salvar projeto no armazenamento local.');
+      setErroGeral(err instanceof Error ? err.message : 'Falha ao salvar projeto.');
     } finally {
       setSalvando(false);
       setConfirmacaoClienteAberta(false);
@@ -212,10 +212,12 @@ export function ProjectModal({
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-2">
                   <div className="flex items-center gap-2 font-semibold">
                     <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>Nenhum cliente disponível no cadastro local</span>
+                    <span>{operacaoCentralizada ? 'Nenhum contratante ativo disponível' : 'Nenhum cliente disponível no cadastro local'}</span>
                   </div>
                   <p>
-                    {projectToEdit?.clienteId
+                    {operacaoCentralizada
+                      ? 'Cadastre ou verifique um contratante ativo no módulo Clientes.'
+                      : projectToEdit?.clienteId
                       ? 'O vínculo histórico será mantido. Novos vínculos dependem de um cliente disponível localmente.'
                       : 'Projetos ainda usa o cadastro local. Clientes cadastrados no Supabase ficam disponíveis para novos vínculos após a migração de Projetos.'}
                   </p>

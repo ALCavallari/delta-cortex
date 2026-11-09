@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FileDown, Mail, MessageCircle, Share2, X } from 'lucide-react';
 import { RelatorioVisita } from '@/types';
-import { RelatorioRepository } from '@/services/storage';
+import { operacaoCentralizada, RelatorioRepository } from '@/services/repositoriosOperacionais';
 import { baixarRelatorio } from '@/services/reportDownload';
 
 const titulo = 'Relatório de Acompanhamento Sistemático';
@@ -13,11 +13,12 @@ export function ShareReportModal({ visitaId, projeto, data, onClose }: {
   visitaId: string; projeto: string; data: string; onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [versoes, setVersoes] = useState<RelatorioVisita[]>([]);
   const [preparado, setPreparado] = useState<{ relatorio: RelatorioVisita; arquivo: File; nativo: boolean }>();
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const assunto = `${titulo} - ${projeto}`;
-  const mensagem = `Segue o ${titulo} referente ao projeto ${projeto}, realizado em ${data}.`;
+  const assunto = operacaoCentralizada ? titulo : `${titulo} - ${projeto}`;
+  const mensagem = operacaoCentralizada ? 'Segue o relatório em anexo.' : `Segue o ${titulo} referente ao projeto ${projeto}, realizado em ${data}.`;
   const botao = 'inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50';
 
   useEffect(() => {
@@ -26,18 +27,26 @@ export function ShareReportModal({ visitaId, projeto, data, onClose }: {
     return () => elemento?.close();
   }, []);
 
-  useEffect(() => {
-    let ativo = true;
-    void RelatorioRepository.listarPorVisita(visitaId).then(([relatorio]) => {
-      if (!relatorio || !(relatorio.pdf instanceof Blob) || !relatorio.pdf.size) throw new Error(indisponivel);
-      const nomeAlternativo = `RAS_${visitaId.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+  function preparar(relatorio: RelatorioVisita) {
+      const nomeAlternativo = `RAS_${relatorio.visitaId.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
       const arquivo = new File([relatorio.pdf], relatorio.nomeArquivo || nomeAlternativo, { type: 'application/pdf' });
       let nativo = false;
       try {
         nativo = typeof navigator.share === 'function' &&
           typeof navigator.canShare === 'function' && navigator.canShare({ files: [arquivo] });
       } catch { /* O navegador pode bloquear o compartilhamento por política. */ }
-      if (ativo) setPreparado({ relatorio, arquivo, nativo });
+      return { relatorio, arquivo, nativo };
+  }
+
+  useEffect(() => {
+    let ativo = true;
+    void RelatorioRepository.listarPorVisita(visitaId).then(lista => {
+      const disponiveis = lista.filter(r => r.pdf instanceof Blob && r.pdf.size > 0);
+      if (!disponiveis.length) throw new Error(indisponivel);
+      if (ativo) {
+        setVersoes(disponiveis);
+        setPreparado(preparar(disponiveis[0]));
+      }
     }).catch(() => { if (ativo) setErro(indisponivel); });
     return () => { ativo = false; };
   }, [visitaId]);
@@ -68,6 +77,16 @@ export function ShareReportModal({ visitaId, projeto, data, onClose }: {
     </div>
     {!preparado && !erro && <p role="status" className="mb-3 text-sm text-slate-600">Carregando PDF…</p>}
     {erro && <p role="alert" className="mb-3 text-sm text-red-700">{erro}</p>}
+    {preparado && versoes.length > 1 && <label className="mb-3 block text-sm font-semibold">
+      Versão do relatório
+      <select className="mt-1 w-full rounded-lg border p-2" value={preparado.relatorio.id} disabled={ocupado}
+        onChange={e => {
+          const versao = versoes.find(r => r.id === e.target.value);
+          if (versao) setPreparado(preparar(versao));
+        }}>
+        {versoes.map((r, i) => <option key={r.id} value={r.id}>{new Date(r.geradoEm).toLocaleString('pt-BR')} · {i + 1}</option>)}
+      </select>
+    </label>}
     <div className="grid gap-2 sm:grid-cols-2">
       <button type="button" disabled={!preparado?.nativo || ocupado} onClick={compartilhar}
         className="col-span-full inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#00AFF0] px-3 py-2 text-sm font-semibold text-[#333436] disabled:opacity-50">

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, Check, Filter, MapPin, Maximize2 } from 'lucide-react';
-import { ArquivoGeograficoRepository, RegistroCampoRepository } from '@/services/storage';
+import { ArquivoGeograficoRepository, RegistroCampoRepository } from '@/services/repositoriosOperacionais';
 import { normalizarBusca } from '@/services/technicians';
 import { validarCoordenadas } from '@/services/utm';
 import type { Cliente, Projeto, RegistroCampo } from '@/types';

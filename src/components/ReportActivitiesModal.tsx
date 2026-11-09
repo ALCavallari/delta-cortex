@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Visita } from '@/types';
-import { ClienteRepository, ProjetoRepository, RegistroCampoRepository, RelatorioRepository, VisitaRepository } from '@/services/storage';
+import { ClienteRepository, operacaoCentralizada, ProjetoRepository, RegistroCampoRepository, RelatorioRepository, VisitaRepository } from '@/services/repositoriosOperacionais';
 import { registrosDoRelatorio } from '@/services/fieldHistory';
 import { ATIVIDADES } from '@/services/rasActivities';
 import { baixarRelatorio } from '@/services/reportDownload';
@@ -19,18 +19,18 @@ export function ReportActivitiesModal({ visita, onClose, onDone }: { visita: Vis
     setErro('');
     try {
       const atividades = ATIVIDADES.filter(a => selecionadas.includes(a));
-      await RelatorioRepository.salvarAtividades(visita.id, atividades);
+      if (!operacaoCentralizada) await RelatorioRepository.salvarAtividades(visita.id, atividades);
       const atual = await VisitaRepository.obterPorId(visita.id);
       if (!atual || atual.status !== 'concluida') throw new Error('Finalize a visita antes de emitir o relatório.');
       const [cliente, projeto, registros, { gerarRelatorio }] = await Promise.all([
-        ClienteRepository.obterPorId(atual.clienteId),
-        atual.projetoId ? ProjetoRepository.obterPorId(atual.projetoId) : undefined,
+        operacaoCentralizada ? undefined : ClienteRepository.obterPorId(atual.clienteId),
+        !operacaoCentralizada && atual.projetoId ? ProjetoRepository.obterPorId(atual.projetoId) : undefined,
         RegistroCampoRepository.listarNoContexto(atual),
         import('@/services/rasPdf'),
       ]);
       const relatorio = await gerarRelatorio({
-        ...atual, clienteNome: cliente?.nomeRazaoSocial || atual.clienteNome,
-        identificacaoProjeto: projeto?.nome || atual.identificacaoProjeto,
+        ...atual, clienteNome: operacaoCentralizada ? atual.clienteNome : cliente?.nomeRazaoSocial || atual.clienteNome,
+        identificacaoProjeto: operacaoCentralizada ? atual.identificacaoProjeto : projeto?.nome || atual.identificacaoProjeto,
       }, atividades, registrosDoRelatorio(registros, atual));
       if (!relatorio.pdf.size) throw new Error('O PDF gerado está vazio.');
       await RelatorioRepository.adicionar(relatorio);

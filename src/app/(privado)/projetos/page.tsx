@@ -11,8 +11,7 @@ import { Projeto, Cliente } from '@/types';
 import {
   ProjetoRepository,
   ClienteRepository,
-  inicializarDadosSeNecessario,
-} from '@/services/storage';
+} from '@/services/repositoriosOperacionais';
 import {
   Plus,
   Search,
@@ -29,6 +28,7 @@ export default function ProjetosPage() {
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [erroCarga, setErroCarga] = useState('');
 
   // Filtros e ordenação
   const [busca, setBusca] = useState('');
@@ -47,7 +47,7 @@ export default function ProjetosPage() {
   const carregarDados = async () => {
     try {
       setCarregando(true);
-      await inicializarDadosSeNecessario();
+      setErroCarga('');
       const [projs, clis] = await Promise.all([
         ProjetoRepository.listar(),
         ClienteRepository.listar(),
@@ -55,6 +55,7 @@ export default function ProjetosPage() {
       setProjetos(projs);
       setClientes(clis);
     } catch (err) {
+      setErroCarga(err instanceof Error ? err.message : 'Não foi possível carregar os projetos.');
       console.error('Erro ao carregar projetos e clientes:', err);
     } finally {
       setCarregando(false);
@@ -284,6 +285,8 @@ export default function ProjetosPage() {
             <div className="w-10 h-10 border-4 border-[#00AFF0] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-sm font-medium text-slate-600">Carregando projetos...</p>
           </div>
+        ) : erroCarga ? (
+          <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{erroCarga}</p>
         ) : projetosFiltrados.length === 0 ? (
           /* Estado Vazio */
           <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-14 text-center">

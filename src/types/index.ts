@@ -130,6 +130,7 @@ export interface RelatorioVisita {
 }
 
 export interface RegistroCampo {
+  versao?: number;
   projetoId?: string;
   visitaOrigemIdentificacao?: string;
   tecnicoId?: string;

@@ -16,7 +16,7 @@ Prover aos engenheiros, biólogos, gestores, técnicos de campo e consultores am
 - Levantamento georreferenciado em tempo real com conversão geodésica para **Coordenadas UTM WGS84**;
 - Registro padronizado de **Observações** e **Ocorrências** (classificadas por gravidade e meio ambiental: Fauna, Flora, Físico e Social);
 - Captura de **Fotografias de Campo com Estampa Indelével via Canvas** (incorporando a marca Delta S, data, hora, cliente/projeto e coordenadas UTM na própria imagem);
-- Visualização cartográfica e de imagens de satélite de alta resolução com plotagem imediata de marcadores persistidos localmente.
+- Visualização cartográfica e de imagens de satélite de alta resolução com plotagem de marcadores georreferenciados.
 
 ---
 
@@ -139,14 +139,12 @@ NEXT_PUBLIC_MAPTILER_KEY=sua_chave_maptiler_aqui
   - Ordenação alfabética (A-Z, Z-A) e cronológica de cadastro;
   - Edição de clientes cadastrados;
   - Layout adaptado: Tabela no Desktop e Cards otimizados no Mobile.
-- **Módulo Acompanhamento Sistemático**:
-  - Dashboard operacional com contadores reais (total, em andamento, concluídas);
-  - Listagem das visitas salvas no dispositivo com status, data e executor;
-  - Modal **Nova Visita**:
+- **Módulo Trabalho de Campo**:
+  - Listagem das visitas com status, data e executor;
+  - Modal **Novo Trabalho de Campo**:
     - Seleção de Motivo (*Visita Sistemática* operacional; *Mon. Fauna* e *Mon. Flora* com indicação de etapas futuras);
-    - Repositório local de profissionais técnicos com inclusão de novos nomes na interface;
-    - Seleção pesquisável de clientes cadastrados;
-    - Campo opcional de identificação de projeto;
+    - Seleção do executor e do responsável técnico habilitados;
+    - Seleção pesquisável de projetos e identificação do contratante;
     - Geração automática de código da visita ou identificação personalizada.
 - **Ferramenta de Visita Sistemática (Mapa de Satélite)**:
   - Mapa de tela cheia com alternador entre Satélite de Alta Resolução e Mapa Vetorial;
@@ -164,35 +162,13 @@ NEXT_PUBLIC_MAPTILER_KEY=sua_chave_maptiler_aqui
     - Suporte a múltiplas fotos no mesmo ponto.
   - Marcadores persistidos no mapa com clique para abertura de painel com histórico e fotos.
 
-### Funções Demonstrativas / Em Desenvolvimento
-- **Corpo Técnico, Projetos, Contratos e Financeiro**: Módulos navegáveis que apresentam telas organizadas com indicação de "Módulo em desenvolvimento" e escopo detalhado de implementação para as próximas etapas.
-- **Persistência**: Armazenamento estritamente local (IndexedDB no navegador), sem envio para servidores remotos.
+## 8. PERSISTÊNCIA E ARMAZENAMENTO
 
----
+Clientes consulta o Supabase. Projetos, Corpo Técnico e Trabalho de Campo usam a integração operacional após a aplicação da migration e a ativação no build. O IndexedDB preserva os dados anteriores por navegador e origem, com exportação administrativa.
 
-## 8. ARMAZENAMENTO TEMPORÁRIO (INDEXEDDB)
+## 9. MODELO E ATIVAÇÃO DO SUPABASE
 
-Os dados são armazenados na base `delta_cortex_local_db` do navegador, organizada em 5 Object Stores:
-1. `clientes`: Registros completos com índices por nome e documento.
-2. `profissionais`: Técnicos demonstrativos e nomes adicionados em campo.
-3. `visitas`: Visitas de acompanhamento com identificador, cliente, projeto, executor e status.
-4. `registros_campo`: Observações e ocorrências com coordenadas geográficas e UTM.
-5. `fotografias`: Imagens processadas via Canvas com carimbo gráfico incorporado.
-
-> **Aviso de Privacidade**: Os dados permanecem disponíveis após atualizar a página, desde que o navegador preserve seu armazenamento local. Por se tratar de uma versão demonstrativa local, não insira dados sensíveis ou confidenciais de clientes reais.
-
----
-
-## 9. MODELOS DE DADOS E MIGRAÇÃO FUTURA PARA O SUPABASE
-
-A camada de serviços (`src/services/storage.ts`) foi desenvolvida seguindo o padrão **Repository**, separando a lógica de negócio dos componentes visuais. Quando for implementado o backend com Supabase/PostgreSQL, a migração envolverá apenas a substituição das chamadas do IndexedDB pelo client do `@supabase/supabase-js`, mantendo as telas e regras de negócio 100% intactas.
-
-### Mapeamento sugerido para tabelas PostgreSQL:
-- `clientes` -> `tb_clientes (id uuid, tipo_pessoa varchar, nome_razao varchar, cpf_cnpj varchar, ...)`
-- `profissionais` -> `tb_profissionais (id uuid, nome varchar, registro_prof varchar, ...)`
-- `visitas` -> `tb_visitas (id uuid, cliente_id uuid references tb_clientes, identificacao varchar, ...)`
-- `registros_campo` -> `tb_registros_campo (id uuid, visita_id uuid references tb_visitas, tipo varchar, meio varchar, geom geometry(Point, 4326), utm_easting numeric, utm_northing numeric, ...)`
-- `fotografias` -> `tb_fotografias (id uuid, registro_campo_id uuid references tb_registros_campo, storage_path text, ...)` (com envio das imagens para o Supabase Storage Bucket).
+Consulte a [documentação de centralização operacional](supabase/README.md) para conferir as tabelas PostgreSQL, políticas RLS, buckets privados, uploads e revisão do legado.
 
 ---
 
@@ -232,7 +208,7 @@ O login protege a entrada da aplicação. Os módulos locais continuam no Indexe
 
 Clientes usa exclusivamente `public.clientes` no Supabase em desenvolvimento e produção. Configure `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` em `.env.local` e na Vercel. A tela indica a fonte e apresenta erros de configuração, conexão ou permissão. Os clientes anteriores permanecem no IndexedDB.
 
-Projetos, Corpo Técnico e Trabalho de Campo continuam locais. Projetos e visitas mantêm seus vínculos históricos. Novos vínculos exigem um contratante ativo no cadastro local até a migração de Projetos.
+Projetos, Corpo Técnico e Trabalho de Campo têm repositórios Supabase preparados. A ativação depende da migration operacional e de `NEXT_PUBLIC_OPERACAO_SUPABASE=true` durante o build. Consulte o [roteiro de centralização](supabase/README.md) antes da publicação. Os dados locais podem ser inventariados e exportados por um administrador ativo.
 
 O serviço consulta `public.acessos_usuarios` pelo `user_id` da sessão verificada, exige `ativo = true` e interpreta `papel` como `admin`, `editor` ou `leitor`. Admin e editor podem gravar, e leitor pode consultar. A interface reflete o papel, enquanto as políticas RLS existentes autorizam as operações no banco. A exclusão atualiza `excluido_em` e exige a confirmação de uma linha afetada.
 

@@ -114,200 +114,21 @@ function getDB(): Promise<IDBPDatabase<DeltaCortexDB>> {
   return dbPromise;
 }
 
-// ==========================================
-// SEMENTE DE DADOS INICIAL (DEMONSTRAÇÃO)
-// ==========================================
-const PROFISSIONAIS_INICIAIS: Profissional[] = [
-  {
-    id: 'prof-demo-1',
-    nome: '[Demonstração] Eng. Carlos Drummond - Consultor Ambiental',
-    origemTemporaria: true,
-    cargo: 'Engenheiro Ambiental Pleno',
-    registroProfissional: 'CREA-PR 12345/D',
-  },
-  {
-    id: 'prof-demo-2',
-    nome: '[Demonstração] Dra. Marina Silva Ramos - Bióloga / Fauna',
-    origemTemporaria: true,
-    cargo: 'Bióloga Coordenadora',
-    registroProfissional: 'CRBio 45678/07-D',
-  },
-  {
-    id: 'prof-demo-3',
-    nome: '[Demonstração] Tec. Rafael Santos - Técnico de Campo',
-    origemTemporaria: true,
-    cargo: 'Técnico em Meio Ambiente',
-    registroProfissional: 'CFT 987654',
-  },
-  {
-    id: 'prof-demo-4',
-    nome: '[Demonstração] Eng. Helena Souza - Responsável Técnica Geral',
-    origemTemporaria: true,
-    cargo: 'Engenheira Civil / Hídrica',
-    registroProfissional: 'CREA-SP 65432/D',
-  },
-];
-
-const CLIENTES_INICIAIS: Cliente[] = [
-  {
-    id: 'cli-demo-1',
-    tipoPessoa: 'PJ',
-    nomeRazaoSocial: 'Energética Rio das Pedras S.A. (CGH Rio das Pedras)',
-    cpfCnpj: '12.345.678/0001-90',
-    cep: '80010-000',
-    logradouro: 'Avenida das Araucárias',
-    numero: '1500',
-    complemento: 'Sala 802',
-    bairro: 'Centro Cívico',
-    cidade: 'Curitiba',
-    estado: 'PR',
-    inscricaoEstadual: '90123456-78',
-    telefone: '(41) 3344-5566',
-    email: 'contato@riodaspedrasenergia.com.br',
-    responsavel: 'Guilherme Albuquerque',
-    cargo: 'Diretor de Operações',
-    criadoEm: new Date(Date.now() - 86400000 * 5).toISOString(),
-    atualizadoEm: new Date(Date.now() - 86400000 * 5).toISOString(),
-  },
-  {
-    id: 'cli-demo-2',
-    tipoPessoa: 'PJ',
-    nomeRazaoSocial: 'Complexo Eólico Ventos do Sul Ltda.',
-    cpfCnpj: '98.765.432/0001-10',
-    cep: '88015-100',
-    logradouro: 'Rua Bocaiúva',
-    numero: '450',
-    complemento: 'Bloco B',
-    bairro: 'Centro',
-    cidade: 'Florianópolis',
-    estado: 'SC',
-    inscricaoEstadual: '254896321',
-    telefone: '(48) 3211-9988',
-    email: 'gestao.ambiental@ventosdosul.com.br',
-    responsavel: 'Camila Ferreira Neves',
-    cargo: 'Gerente Socioambiental',
-    criadoEm: new Date(Date.now() - 86400000 * 2).toISOString(),
-    atualizadoEm: new Date(Date.now() - 86400000 * 2).toISOString(),
-  },
-];
-
-const PROJETOS_INICIAIS: Projeto[] = [
-  {
-    id: 'proj-demo-1',
-    clienteId: 'cli-demo-1',
-    nome: 'CGH Rio das Pedras — Barramento e Vertedouro',
-    descricao:
-      'Implantação de Central Geradora Hidrelétrica (CGH), incluindo estudos de viabilidade socioambiental, supervisão técnica de obras do barramento, canal de adução, casa de força e recuperação de Áreas de Preservação Permanente (APP).',
-    criadoEm: new Date(Date.now() - 86400000 * 10).toISOString(),
-    atualizadoEm: new Date(Date.now() - 86400000 * 10).toISOString(),
-  },
-  {
-    id: 'proj-demo-2',
-    clienteId: 'cli-demo-2',
-    nome: 'Complexo Eólico Ventos do Sul — Fase 1',
-    descricao:
-      'Monitoramento socioambiental contínuo, supervisão da instalação de aerogeradores, planos de conservação de avifauna e mastofauna, e atendimento às condicionantes da Licença de Operação (LO).',
-    criadoEm: new Date(Date.now() - 86400000 * 8).toISOString(),
-    atualizadoEm: new Date(Date.now() - 86400000 * 8).toISOString(),
-  },
-];
-
-export async function inicializarDadosSeNecessario(): Promise<void> {
-  if (typeof window === 'undefined') return;
-  try {
-    const db = await getDB();
-    const countProf = await db.count('profissionais');
-    if (countProf === 0) {
-      const tx = db.transaction('profissionais', 'readwrite');
-      for (const p of PROFISSIONAIS_INICIAIS) {
-        await tx.store.put(p);
-      }
-      await tx.done;
-    }
-
-    const countCli = await db.count('clientes');
-    if (countCli === 0) {
-      const tx = db.transaction('clientes', 'readwrite');
-      for (const c of CLIENTES_INICIAIS) {
-        await tx.store.put(c);
-      }
-      await tx.done;
-    }
-
-    const countProj = await db.count('projetos');
-    if (countProj === 0) {
-      const tx = db.transaction('projetos', 'readwrite');
-      for (const p of PROJETOS_INICIAIS) {
-        await tx.store.put(p);
-      }
-      await tx.done;
-    }
-
-    const countVisitas = await db.count('visitas');
-    if (countVisitas === 0) {
-      const visitaDemo: Visita = {
-        id: 'vis-demo-1',
-        identificacao: 'VIS-20261014-001',
-        motivo: 'Visita Sistemática',
-        executorId: 'prof-demo-1',
-        executorNome: '[Demonstração] Eng. Carlos Drummond - Consultor Ambiental',
-        responsavelTecnicoId: 'prof-demo-4',
-        responsavelTecnicoNome: '[Demonstração] Eng. Helena Souza - Responsável Técnica Geral',
-        clienteId: 'cli-demo-1',
-        clienteNome: 'Energética Rio das Pedras S.A. (CGH Rio das Pedras)',
-        projetoId: 'proj-demo-1',
-        identificacaoProjeto: 'CGH Rio das Pedras — Barramento e Vertedouro',
-        data: '2026-10-14',
-        status: 'em_andamento',
-        criadoEm: new Date().toISOString(),
-        atualizadoEm: new Date().toISOString(),
-      };
-      await db.put('visitas', visitaDemo);
-
-      // Registros de campo de demonstração
-      const reg1: RegistroCampo = {
-        id: 'reg-demo-1',
-        visitaId: 'vis-demo-1',
-        tipo: 'Observacao',
-        meio: 'Flora',
-        descricao:
-          'Identificada regeneração natural satisfatória de espécies nativas na Área de Preservação Permanente (APP) a montante do barramento da CGH. Ausência de espécies invasoras agressivas no talude.',
-        latitude: -25.4284,
-        longitude: -49.2733,
-        precisaoMetros: 6.5,
-        utmZona: 22,
-        utmHemisferio: 'S',
-        utmEasting: 673715,
-        utmNorthing: 7186419,
-        referenciaGeodesica: 'WGS84',
-        registradoEm: new Date(Date.now() - 3600000 * 2).toISOString(),
-      };
-
-      const reg2: RegistroCampo = {
-        id: 'reg-demo-2',
-        visitaId: 'vis-demo-1',
-        tipo: 'Ocorrencia',
-        meio: 'Físico',
-        gravidade: 'Grave',
-        descricao:
-          'Processo erosivo moderado com surgimento de sulco no talude de corte da via de acesso à casa de força após chuvas recentes. Recomenda-se instalação de leivas e dissipadores de energia pluvial para contenção.',
-        latitude: -25.4291,
-        longitude: -49.2721,
-        precisaoMetros: 9.2,
-        utmZona: 22,
-        utmHemisferio: 'S',
-        utmEasting: 673836,
-        utmNorthing: 7186341,
-        referenciaGeodesica: 'WGS84',
-        registradoEm: new Date(Date.now() - 3600000).toISOString(),
-      };
-
-      await db.put('registros_campo', reg1);
-      await db.put('registros_campo', reg2);
-    }
-  } catch (err) {
-    console.error('Erro ao inicializar semente no IndexedDB:', err);
-  }
+export async function lerDadosLegados() {
+  const db = await getDB();
+  const tx = db.transaction([
+    'clientes', 'profissionais', 'projetos', 'visitas', 'registros_campo',
+    'fotografias', 'arquivos_geograficos', 'relatorios',
+  ]);
+  const [clientes, profissionais, projetos, visitas, registros, fotografias, geograficos, relatorios] =
+    await Promise.all([
+      tx.objectStore('clientes').getAll(), tx.objectStore('profissionais').getAll(),
+      tx.objectStore('projetos').getAll(), tx.objectStore('visitas').getAll(),
+      tx.objectStore('registros_campo').getAll(), tx.objectStore('fotografias').getAll(),
+      tx.objectStore('arquivos_geograficos').getAll(), tx.objectStore('relatorios').getAll(),
+    ]);
+  await tx.done;
+  return { clientes, profissionais, projetos, visitas, registros, fotografias, geograficos, relatorios };
 }
 
 // ==========================================

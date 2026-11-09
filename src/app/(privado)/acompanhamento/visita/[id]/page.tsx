@@ -29,8 +29,7 @@ import {
   ProjetoRepository,
   ArquivoGeograficoRepository,
   RegistroCampoRepository,
-  inicializarDadosSeNecessario,
-} from '@/services/storage';
+} from '@/services/repositoriosOperacionais';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { FieldRecordModal } from '@/components/FieldRecordModal';
 import { CamposFiltrosMapa, MapFilterToolbar } from '@/components/Map/MapFilterToolbar';
@@ -69,6 +68,7 @@ function VisitaOperacionalContent() {
   const [descricaoMapa, setDescricaoMapa] = useState('');
   const [focoProjeto, setFocoProjeto] = useState<{ enquadramento: EnquadramentoMapa; acionamento: number }>();
   const [carregando, setCarregando] = useState(true);
+  const [erroCarga, setErroCarga] = useState('');
 
   // Hook de Geolocalização com alta precisão e monitoramento contínuo
   const {
@@ -101,7 +101,7 @@ function VisitaOperacionalContent() {
     const carregarDados = async () => {
       try {
         setCarregando(true);
-        await inicializarDadosSeNecessario();
+        setErroCarga('');
         const v = await VisitaRepository.obterPorId(visitaId);
         if (!v) {
           router.push('/acompanhamento');
@@ -113,6 +113,7 @@ function VisitaOperacionalContent() {
         setRegistros(regs);
       } catch (err) {
         console.error('Erro ao carregar dados da visita:', err);
+        setErroCarga(err instanceof Error ? err.message : 'Não foi possível carregar a visita.');
       } finally {
         setCarregando(false);
       }
@@ -198,7 +199,7 @@ function VisitaOperacionalContent() {
   const mudarSituacao = async (id: string, situacao: 'resolvido' | 'em_aberto') => {
     if (!visita) return;
     try {
-      await RegistroCampoRepository.mudarSituacao(id, situacao, visita);
+      await RegistroCampoRepository.mudarSituacao(id, situacao, visita, contexto.find(r => r.id === id)?.versao);
       const todos = await RegistroCampoRepository.listarNoContexto(visita);
       setRegistros(todos);
       setRegistrosExcluidos(prev => prev.map(r => todos.find(atual => atual.id === r.id) ?? r));
@@ -218,7 +219,7 @@ function VisitaOperacionalContent() {
 
     try {
       setFinalizando(true);
-      await VisitaRepository.atualizarStatus(visita.id, 'concluida');
+      await VisitaRepository.atualizarStatus(visita.id, 'concluida', visita.atualizadoEm);
       setVisita((prev) => (prev ? { ...prev, status: 'concluida' } : null));
       setRelatorioModal('pergunta');
     } catch (err) {
@@ -235,6 +236,13 @@ function VisitaOperacionalContent() {
     }
     return dataStr;
   };
+
+  if (erroCarga) {
+    return <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-900 p-6 text-white">
+      <p role="alert">{erroCarga}</p>
+      <button type="button" className="rounded-lg bg-white/10 px-4 py-2" onClick={() => router.push('/acompanhamento')}>Voltar aos trabalhos</button>
+    </div>;
+  }
 
   if (carregando || !visita) {
     return (

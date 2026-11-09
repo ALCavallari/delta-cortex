@@ -26,7 +26,7 @@ import {
 } from '@/types';
 import { converterParaUTM } from '@/services/utm';
 import { aplicarEstampaFoto } from '@/services/photoStamper';
-import { RegistroCampoRepository } from '@/services/storage';
+import { RegistroCampoRepository } from '@/services/repositoriosOperacionais';
 
 interface FieldRecordModalProps {
   isOpen: boolean;
@@ -249,11 +249,11 @@ export function FieldRecordModal({
 
       await RegistroCampoRepository.salvar(novoRegistro);
 
-      onRecordSaved(novoRegistro);
+      onRecordSaved({ ...novoRegistro, versao: 0 });
       onClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao gravar registro de campo:', err);
-      setErroGeral(err?.message || 'Falha ao salvar registro no armazenamento local.');
+      setErroGeral(err instanceof Error ? err.message : 'Falha ao salvar o registro de campo.');
       setSalvando(false);
     }
   };
@@ -347,25 +347,7 @@ export function FieldRecordModal({
                     <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                     <div className="flex-1">
                       <p className="font-bold">Sinal de GPS não detectado neste dispositivo.</p>
-                      <p className="text-[11px] text-amber-700 mt-0.5">
-                        Em computadores de mesa sem antena GPS, você pode carregar as coordenadas cartográficas da usina para teste:
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const demoLat = -25.4284;
-                          const demoLng = -49.2733;
-                          setLatEstavel(demoLat);
-                          setLngEstavel(demoLng);
-                          setPrecisaoEstavel(6.0);
-                          setUtmEstavel(converterParaUTM(demoLat, demoLng));
-                          setErros((prev) => ({ ...prev, coordenadas: '' }));
-                        }}
-                        className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#00AFF0] text-white rounded-lg text-xs font-bold hover:bg-[#0098d1] transition-colors shadow-xs"
-                      >
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>Carregar Coordenadas da Usina (CGH PR)</span>
-                      </button>
+                      <p className="text-[11px] text-amber-700 mt-0.5">Permita o acesso à localização e aguarde o sinal para registrar as coordenadas reais.</p>
                     </div>
                   </div>
                 </div>

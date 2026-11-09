@@ -15,8 +15,8 @@ import {
   ClienteRepository,
   ProjetoRepository,
   ProfissionalRepository,
-  inicializarDadosSeNecessario,
-} from '@/services/storage';
+  operacaoCentralizada,
+} from '@/services/repositoriosOperacionais';
 import {
   Plus,
   Compass,
@@ -48,6 +48,7 @@ export default function AcompanhamentoDashboardPage() {
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [erroCarga, setErroCarga] = useState('');
 
   // Modais
   const [modalNovaVisitaAberto, setModalNovaVisitaAberto] = useState(false);
@@ -76,7 +77,7 @@ export default function AcompanhamentoDashboardPage() {
   const carregarDados = async () => {
     try {
       setCarregando(true);
-      await inicializarDadosSeNecessario();
+      setErroCarga('');
       const [listaVisitas, listaExcluidas, listaClientes, listaProjetos, listaProfissionais] =
         await Promise.all([
           VisitaRepository.listar(false),
@@ -94,6 +95,7 @@ export default function AcompanhamentoDashboardPage() {
       try { setComRelatorio(await RelatorioRepository.visitasComRelatorio()); }
       catch { showToast('Não foi possível consultar os relatórios salvos.'); }
     } catch (err) {
+      setErroCarga(err instanceof Error ? err.message : 'Não foi possível carregar os trabalhos.');
       console.error('Erro ao carregar dados do acompanhamento:', err);
     } finally {
       setCarregando(false);
@@ -353,7 +355,8 @@ export default function AcompanhamentoDashboardPage() {
         {aba === 'mapa' ? (
           <section aria-labelledby="titulo-mapa-ocorrencias" className="space-y-4">
             <h1 id="titulo-mapa-ocorrencias" className="text-2xl font-bold text-[#333436]">Mapa de Ocorrências</h1>
-            <ProjectOccurrenceMap projetos={projetos} clientes={clientes} carregando={carregando} />
+            {erroCarga ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{erroCarga}</p> :
+              <ProjectOccurrenceMap projetos={projetos} clientes={clientes} carregando={carregando} />}
           </section>
         ) : <>
         {/* Cabeçalho da Seção & Ações de Topo */}
@@ -610,7 +613,7 @@ export default function AcompanhamentoDashboardPage() {
               Trabalhos de Campo Cadastrados
             </h2>
             <span className="text-xs text-slate-500 hidden sm:inline">
-              Registros locais armazenados no dispositivo
+              {operacaoCentralizada ? 'Fonte de dados: Supabase' : 'Registros locais armazenados no dispositivo'}
             </span>
           </div>
 
@@ -619,6 +622,8 @@ export default function AcompanhamentoDashboardPage() {
               <div className="w-10 h-10 border-4 border-[#00AFF0] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-sm font-medium text-slate-600">Carregando histórico de visitas...</p>
             </div>
+          ) : erroCarga ? (
+            <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{erroCarga}</p>
           ) : visitasFiltradas.length === 0 ? (
             /* Estado Vazio */
             <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-14 text-center">

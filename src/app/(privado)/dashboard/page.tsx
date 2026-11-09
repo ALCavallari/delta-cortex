@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { descricoesModulos } from '@/services/moduleDescriptions';
 import { Header } from '@/components/Header';
 import { ModuleCard } from '@/components/ModuleCard';
+import { BackupLegado } from '@/components/BackupLegado';
 import {
   Users,
   GraduationCap,
@@ -12,14 +13,8 @@ import {
   FolderKanban,
   ClipboardCheck,
 } from 'lucide-react';
-import { inicializarDadosSeNecessario } from '@/services/storage';
 
 export default function DashboardPage() {
-  useEffect(() => {
-    // Inicializa dados de demonstração no IndexedDB para testes imediatos
-    inicializarDadosSeNecessario();
-  }, []);
-
   const modules = [
     {
       id: 'clientes',
@@ -98,6 +93,7 @@ export default function DashboardPage() {
             ))}
           </div>
         </section>
+        <BackupLegado />
       </main>
 
     </div>

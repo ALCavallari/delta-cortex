@@ -23,7 +23,7 @@ import {
   ProfissionalRepository,
   VisitaRepository,
   ProjetoRepository,
-} from '@/services/storage';
+} from '@/services/repositoriosOperacionais';
 
 interface NewVisitModalProps {
   isOpen: boolean;
@@ -91,6 +91,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
         setIdentificacao(codigoAuto);
       } catch (err) {
         console.error('Erro ao carregar dados do modal de visita:', err);
+        setErroGeral(err instanceof Error ? err.message : 'Não foi possível carregar os dados da visita.');
       } finally {
         setCarregandoDados(false);
       }
@@ -159,7 +160,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
           ? 'Cadastre um projeto antes de iniciar uma visita.'
           : 'Selecione um projeto cadastrado para iniciar a visita.';
     } else if (!clienteDoProjeto) {
-      novosErros.projetoId = 'O contratante deste projeto está indisponível no cadastro local. Revise o vínculo em Projetos antes de iniciar a visita.';
+      novosErros.projetoId = 'O contratante deste projeto está indisponível. Revise o vínculo em Projetos antes de iniciar a visita.';
     }
 
     if (!profissionais.some(p => p.id === executorId)) {
@@ -215,7 +216,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated }: NewVisitModal
       router.push(`/acompanhamento/visita/${novaVisita.id}`);
     } catch (err) {
       console.error('Erro ao iniciar visita:', err);
-      setErroGeral(err instanceof Error ? err.message : 'Falha ao salvar a visita no armazenamento local.');
+      setErroGeral(err instanceof Error ? err.message : 'Falha ao salvar a visita.');
       setIniciando(false);
     }
   };
