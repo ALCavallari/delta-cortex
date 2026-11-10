@@ -185,7 +185,8 @@ async function excluirRegistro(id: string, excluido: boolean) {
 }
 
 export const RegistroCampoSupabaseRepository = {
-  listarNoContexto: (visita: Visita) => listarRegistros({ visitaId: visita.id, projetoId: visita.projetoId }, true),
+  listarNoContexto: (visita: Visita, incluirFotos = true) =>
+    listarRegistros({ visitaId: visita.id, projetoId: visita.projetoId }, incluirFotos),
   listarOcorrenciasDoProjeto: (projetoId: string) => listarRegistros({ projetoId, excluidos: false }, false),
   listarExcluidosPorVisita: (visitaId: string) => listarRegistros({ visitaId, excluidos: true }, true),
   excluirLogico: (id: string) => excluirRegistro(id, true),
@@ -230,6 +231,7 @@ type LinhaRelatorio = {
 };
 
 export type RelatorioListado = Omit<RelatorioVisita, 'pdf'> & { identificacaoVisita?: string };
+export type TextoRegistroRelatorio = { id: string; anterior: string; descricao: string };
 type LinhaRelatorioComVisita = LinhaRelatorio & { visitas_sistematicas?: { identificacao: string } };
 
 function resumoRelatorio(r: LinhaRelatorioComVisita): RelatorioListado {
@@ -260,7 +262,7 @@ async function baixarLinhaRelatorio(r: LinhaRelatorio): Promise<RelatorioVisita>
 
 export const RelatorioSupabaseRepository = {
   salvarAtividades: (id: string, atividades: string[]) => atualizarVisita(id, { atividades_realizadas: atividades }, 'salvar as atividades'),
-  async adicionar(r: RelatorioVisita, originalId?: string, verificarRelatorioAtual = false) {
+  async adicionar(r: RelatorioVisita, originalId?: string, verificarRelatorioAtual = false, textos?: TextoRegistroRelatorio[]) {
     const path = `${r.visitaId}/relatorios/${r.id}/${crypto.randomUUID()}.pdf`;
     await enviarObjeto(BUCKET_VISITAS, path, r.pdf, 'application/pdf');
     try {
@@ -269,11 +271,16 @@ export const RelatorioSupabaseRepository = {
         atividades: r.atividades, registro_ids: r.registroIds, fotografia_ids: r.fotografiaIds,
       };
       const banco = bancoOperacional();
-      const resultado = verificarRelatorioAtual
+      const resultado = originalId && textos
+        ? await banco.rpc('delta_cortex_revisar_relatorio', { p_original: originalId, p_relatorio, p_textos: textos })
+        : verificarRelatorioAtual
         ? await banco.rpc('delta_cortex_emitir_relatorio_visita', { p_original: originalId ?? null, p_relatorio })
         : originalId
         ? await banco.rpc('delta_cortex_substituir_relatorio', { p_original: originalId, p_relatorio })
         : await banco.rpc('delta_cortex_adicionar_relatorio', { p_relatorio });
+      if (textos && resultado.error?.code === '40001') {
+        throw new Error('O relatório ou um registro mudou durante a edição. Reabra o editor para carregar a versão atual.');
+      }
       confirmarLinha(resultado, 'publicar o relatório');
     } catch (erro) {
       await removerEnvioPendente(BUCKET_VISITAS, path).catch(() => {});
