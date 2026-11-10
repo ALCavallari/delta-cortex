@@ -74,10 +74,14 @@ export async function gerarRelatorio(visita: Visita, atividades: string[], regis
     ['Data', dataBR(visita.data)],
     ['Responsável Técnico', visita.responsavelTecnicoNome],
   ];
-  const passo = 4.8, margem = 5;
-  texto(10);
-  const linhasIdentificacao: string[] = campos.flatMap(([rotulo, valor]) =>
-    doc.splitTextToSize(`${rotulo}: ${valor || '—'}`, largura - 2 * margem));
+  const passo = 6, margem = 5;
+  const linhasIdentificacao = campos.flatMap(([rotulo, valor]) => {
+    const etiqueta = `${rotulo}:`;
+    const larguraRotulo = texto(10, 'bold').getTextWidth(etiqueta);
+    const recuo = larguraRotulo + texto(10).getTextWidth(' ');
+    const linhas: string[] = doc.splitTextToSize(valor || '—', largura - 2 * margem, { textIndent: recuo });
+    return linhas.map((linha, i) => ({ linha, etiqueta: i === 0 ? etiqueta : '', recuo: i === 0 ? recuo : 0 }));
+  });
   const alturaCard = (n: number) => 2 * margem + passo * n;
   // Mantém o card inteiro quando couber em uma página; divide apenas conteúdo excepcionalmente longo.
   if (alturaCard(linhasIdentificacao.length) <= limite - 43) reservar(alturaCard(linhasIdentificacao.length));
@@ -88,9 +92,11 @@ export async function gerarRelatorio(visita: Visita, atividades: string[], regis
     const altura = alturaCard(quantidade);
     doc.setFillColor(cores.fundo).setDrawColor(cores.borda).setLineWidth(0.2)
       .roundedRect(x, y, largura, altura, 2.2, 2.2, 'FD');
-    texto(10);
     for (let j = 0; j < quantidade; j++) {
-      doc.text(linhasIdentificacao[i + j], x + margem, y + margem + 3.5 + j * passo);
+      const { linha, etiqueta, recuo } = linhasIdentificacao[i + j];
+      const linhaY = y + margem + 3.5 + j * passo;
+      if (etiqueta) texto(10, 'bold').text(etiqueta, x + margem, linhaY);
+      texto(10).text(linha, x + margem + recuo, linhaY);
     }
     y += altura;
     i += quantidade;
