@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   Camera,
@@ -29,17 +29,15 @@ import { aplicarEstampaFoto } from '@/services/photoStamper';
 import { RegistroCampoRepository } from '@/services/repositoriosOperacionais';
 
 interface FieldRecordModalProps {
-  isOpen: boolean;
   onClose: () => void;
   visita: Visita;
-  capturedLat: number | null;
-  capturedLng: number | null;
+  capturedLat: number;
+  capturedLng: number;
   capturedAccuracy: number | null;
   onRecordSaved: (registro: RegistroCampo) => void;
 }
 
 export function FieldRecordModal({
-  isOpen,
   onClose,
   visita,
   capturedLat,
@@ -59,11 +57,17 @@ export function FieldRecordModal({
   const [fotoVisualizando, setFotoVisualizando] = useState<string | null>(null);
 
   // Coordenadas estáveis capturadas no momento da abertura
-  const [latEstavel, setLatEstavel] = useState<number | null>(null);
-  const [lngEstavel, setLngEstavel] = useState<number | null>(null);
-  const [precisaoEstavel, setPrecisaoEstavel] = useState<number | null>(null);
-  const [utmEstavel, setUtmEstavel] = useState<CoordenadasUTM | null>(null);
-  const [momentoAbertura, setMomentoAbertura] = useState<Date>(new Date());
+  const latEstavel = capturedLat;
+  const lngEstavel = capturedLng;
+  const precisaoEstavel = capturedAccuracy;
+  const [utmEstavel] = useState<CoordenadasUTM | null>(() => {
+    try {
+      return converterParaUTM(capturedLat, capturedLng, false, 'SIRGAS 2000');
+    } catch {
+      return null;
+    }
+  });
+  const [momentoAbertura] = useState(() => new Date());
 
   // Estados de controle
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -74,40 +78,6 @@ export function FieldRecordModal({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fixa as coordenadas na abertura do formulário
-  useEffect(() => {
-    if (isOpen) {
-      const agora = new Date();
-      setMomentoAbertura(agora);
-      setLatEstavel(capturedLat);
-      setLngEstavel(capturedLng);
-      setPrecisaoEstavel(capturedAccuracy);
-
-      if (capturedLat !== null && capturedLng !== null) {
-        try {
-          const utm = converterParaUTM(capturedLat, capturedLng, false, 'SIRGAS 2000');
-          setUtmEstavel(utm);
-        } catch (e) {
-          console.error('Erro na conversão UTM:', e);
-          setUtmEstavel(null);
-        }
-      } else {
-        setUtmEstavel(null);
-      }
-
-      // Reset dos campos
-      setTipo('Observacao');
-      setMeio('Flora');
-      setDescricao('');
-      setGravidade('');
-      setFotos([]);
-      setErros({});
-      setErroGeral(null);
-      setSalvando(false);
-      setRevisao(null);
-    }
-  }, [isOpen, capturedLat, capturedLng, capturedAccuracy]);
-
   // Se mudar o tipo para Observação, limpa gravidade conforme especificação
   const handleTipoChange = (novoTipo: TipoRegistro) => {
     setTipo(novoTipo);
@@ -116,8 +86,6 @@ export function FieldRecordModal({
       setErros((prev) => ({ ...prev, gravidade: '' }));
     }
   };
-
-  if (!isOpen) return null;
 
   // Processamento de fotografia com carimbo indelével Canvas
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

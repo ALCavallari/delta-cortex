@@ -92,7 +92,7 @@ function VisitaOperacionalContent() {
   const [finalizando, setFinalizando] = useState(false);
 
   // Modais operacionais
-  const [modalRegistroAberto, setModalRegistroAberto] = useState(false);
+  const [posicaoRegistro, setPosicaoRegistro] = useState<{ latitude: number; longitude: number; precisao: number | null } | null>(null);
   const [marcadorSelecionado, setMarcadorSelecionado] = useState<RegistroCampo | null>(null);
   const [modalExcluidosAberto, setModalExcluidosAberto] = useState(false);
   const [modoHistorico, setModoHistorico] = useState<'excluidos' | 'historico' | 'observacoes_excluidas'>('excluidos');
@@ -147,7 +147,7 @@ function VisitaOperacionalContent() {
       }
       return;
     }
-    setModalRegistroAberto(true);
+    setPosicaoRegistro({ latitude: userLat, longitude: userLng, precisao: userAccuracy });
   };
 
   const handleRegistroSalvo = (novo: RegistroCampo) => {
@@ -494,15 +494,14 @@ function VisitaOperacionalContent() {
       </main>
 
       {/* Modal / Bottom Sheet: Novo Registro de Campo */}
-      <FieldRecordModal
-        isOpen={modalRegistroAberto}
-        onClose={() => setModalRegistroAberto(false)}
+      {posicaoRegistro && <FieldRecordModal
+        onClose={() => setPosicaoRegistro(null)}
         visita={visita}
-        capturedLat={userLat}
-        capturedLng={userLng}
-        capturedAccuracy={userAccuracy}
+        capturedLat={posicaoRegistro.latitude}
+        capturedLng={posicaoRegistro.longitude}
+        capturedAccuracy={posicaoRegistro.precisao}
         onRecordSaved={handleRegistroSalvo}
-      />
+      />}
 
       {/* Modal: Detalhes do Marcador Selecionado */}
       <MarkerDetailsModal
