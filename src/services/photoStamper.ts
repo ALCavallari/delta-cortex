@@ -4,8 +4,6 @@ export interface EstampaFotoOptions {
   dataHora: Date;
   clienteProjeto: string;
   utm: CoordenadasUTM;
-  latitude?: number;
-  longitude?: number;
 }
 
 /**
@@ -44,11 +42,11 @@ export async function aplicarEstampaFoto(
         const lineHeight = fontSizeBody * 1.45;
         const padding = Math.max(14, Math.round(16 * scale));
 
-        const numLinhas = 4;
+        const numLinhas = 3;
         const faixaHeight = padding * 2 + fontSizeTitle + numLinhas * lineHeight;
 
-        // 3. Desenha faixa inferior escura semitransparente (Grafite Delta S #333436 com opacidade)
-        ctx.fillStyle = 'rgba(30, 32, 34, 0.88)';
+        // 3. Desenha a faixa inferior em grafite semitransparente
+        ctx.fillStyle = 'rgba(40, 42, 44, 0.82)';
         ctx.fillRect(0, height - faixaHeight, width, faixaHeight);
 
         // Linha sutil de topo na faixa com cor Azul Delta S (#00AFF0)
@@ -87,17 +85,17 @@ export async function aplicarEstampaFoto(
 
         currentY += fontSizeTitle + (6 * scale);
 
-        // Linha 1: Data e Hora
+        // Linha 1: Cliente / Projeto
         ctx.font = `normal ${fontSizeBody}px monospace, sans-serif`;
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillText(`Data: ${dataStr}   Hora: ${horaStr}`, padding, currentY);
-        currentY += lineHeight;
-
-        // Linha 2: Cliente / Projeto
         ctx.fillText(`Cliente/Projeto: ${options.clienteProjeto || 'Não especificado'}`, padding, currentY);
         currentY += lineHeight;
 
-        // Linha 3: coordenadas UTM no datum do registro.
+        // Linha 2: Data e Hora
+        ctx.fillText(`Data: ${dataStr}   Hora: ${horaStr}`, padding, currentY);
+        currentY += lineHeight;
+
+        // Linha 3: coordenadas UTM SIRGAS 2000
         const utm = options.utm;
         ctx.fillStyle = '#E2E8F0';
         ctx.fillText(
@@ -105,18 +103,6 @@ export async function aplicarEstampaFoto(
           padding,
           currentY
         );
-        currentY += lineHeight;
-
-        // Linha 4: Coordenadas Geográficas (Graus Decimais) para conferência adicional
-        if (options.latitude !== undefined && options.longitude !== undefined) {
-          ctx.fillStyle = '#94A3B8';
-          ctx.font = `${Math.max(10, Math.round(11 * scale))}px monospace, sans-serif`;
-          ctx.fillText(
-            `Lat: ${options.latitude.toFixed(6)}°  Long: ${options.longitude.toFixed(6)}° (WGS84)`,
-            padding,
-            currentY
-          );
-        }
 
         // 6. Exporta imagem carimbada de alta qualidade
         const stampedDataUrl = canvas.toDataURL('image/jpeg', 0.9);

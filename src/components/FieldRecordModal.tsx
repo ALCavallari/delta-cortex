@@ -109,6 +109,9 @@ export function FieldRecordModal({
 
     try {
       setProcessandoFoto(true);
+      const utmFoto = utmEstavel.referenciaGeodesica === 'SIRGAS 2000'
+        ? utmEstavel
+        : converterParaUTM(latEstavel, lngEstavel, false, 'SIRGAS 2000');
 
       const clienteProjetoStr = visita.identificacaoProjeto
         ? `${visita.clienteNome} (${visita.identificacaoProjeto})`
@@ -122,9 +125,7 @@ export function FieldRecordModal({
         const dataUrlEstampada = await aplicarEstampaFoto(file, {
           dataHora: dataHoraFoto,
           clienteProjeto: clienteProjetoStr,
-          utm: utmEstavel,
-          latitude: latEstavel,
-          longitude: lngEstavel,
+          utm: utmFoto,
         });
 
         const novaFoto: Fotografia = {
@@ -133,7 +134,7 @@ export function FieldRecordModal({
           visitaId: registro?.visitaId ?? visita.id,
           dataUrl: dataUrlEstampada,
           capturadaEm: dataHoraFoto.toISOString(),
-          utmInfo: `UTM ${utmEstavel.referenciaGeodesica} · ${utmEstavel.formatado}`,
+          utmInfo: `UTM ${utmFoto.referenciaGeodesica} · ${utmFoto.formatado}`,
           clienteProjetoInfo: clienteProjetoStr,
         };
 
