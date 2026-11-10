@@ -24,11 +24,11 @@ export function UsuariosPainel({ painel, projetos, profissionais }: {
   const termo = normalizarBusca(busca);
   const lista = painel.usuarios.filter(u => normalizarBusca(`${u.nome ?? ''} ${u.email}`).includes(termo)
     && (!perfil || u.papel === perfil)
-    && (!status || (status === 'pendente' ? !u.confirmado : status === 'ativo' ? u.ativo && u.confirmado : !u.ativo)));
+    && (!status || (status === 'pendente' ? !u.confirmado || u.senhaPendente : status === 'ativo' ? u.ativo && u.confirmado && !u.senhaPendente : !u.ativo)));
 
   return <div className="space-y-4">
     {!painel.externoHabilitado && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-      Convites e ativações de clientes e técnicos estão bloqueados até a validação das políticas no Supabase.
+      Cadastros e ativações de clientes e técnicos estão bloqueados até a validação das políticas no Supabase.
     </p>}
     <div className="grid gap-2 rounded-xl border bg-white p-4 sm:grid-cols-4">
       <input className={campo} type="search" aria-label="Pesquisar usuário" placeholder="Nome ou e-mail" value={busca} onChange={e => setBusca(e.target.value)} />
@@ -38,7 +38,7 @@ export function UsuariosPainel({ painel, projetos, profissionais }: {
       <select className={campo} aria-label="Situação" value={status} onChange={e => setStatus(e.target.value)}>
         <option value="">Todas as situações</option><option value="ativo">Ativo</option><option value="inativo">Desativado</option><option value="pendente">Pendente</option>
       </select>
-      <button className={principal} type="button" onClick={() => setEdicao({ foco: 'editar' })}>Convidar Usuário</button>
+      <button className={principal} type="button" onClick={() => setEdicao({ foco: 'editar' })}>Cadastrar Usuário</button>
     </div>
     {mensagem && <p role="status" className="rounded-lg bg-lime-50 p-3">{mensagem}</p>}
     <div className="overflow-x-auto rounded-xl border bg-white">
@@ -46,7 +46,7 @@ export function UsuariosPainel({ painel, projetos, profissionais }: {
         <thead className="bg-slate-50"><tr>{['Nome', 'E-mail', 'Perfil', 'Conta', 'Acesso', 'Projetos', 'Ações'].map(c => <th scope="col" className="p-3" key={c}>{c}</th>)}</tr></thead>
         <tbody>{lista.map(u => <tr key={u.id} className="border-t">
           <td className="p-3 font-semibold">{u.nome ?? '—'}</td><td className="p-3">{u.email}</td><td className="p-3">{rotulosPerfil[u.papel]}</td>
-          <td className="p-3">{u.confirmado ? 'Confirmada' : u.convidadoEm ? 'Convite pendente' : 'Aguardando confirmação'}</td>
+          <td className="p-3">{u.senhaPendente ? 'Troca de senha pendente' : u.confirmado ? 'Confirmada' : u.convidadoEm ? 'Convite pendente' : 'Aguardando confirmação'}</td>
           <td className="p-3">{u.ativo ? 'Ativado' : 'Desativado'}</td><td className="p-3">{u.papel === 'admin' ? 'Global' : u.projetos.length}</td>
           <td className="p-3"><div className="flex flex-wrap gap-1">
             <button type="button" className={botao} onClick={() => setEdicao({ usuario: u, foco: 'editar' })}>Editar</button>
@@ -77,6 +77,8 @@ function Editor({ usuario, foco, projetos, profissionais, fechar, concluir }: {
   const [confirmar, setConfirmar] = useState(false);
   const [vincularExistente, setVincularExistente] = useState(false);
   const [erro, setErro] = useState('');
+  const [senhaProvisoria, setSenhaProvisoria] = useState('');
+  const [feedbackCopia, setFeedbackCopia] = useState('');
   const [ocupado, iniciar] = useTransition();
   const externo = papel === 'cliente' || papel === 'tecnico';
   const revogados = usuario?.projetos.filter(id => !externo || !selecionados.includes(id)) ?? [];
@@ -85,8 +87,26 @@ function Editor({ usuario, foco, projetos, profissionais, fechar, concluir }: {
   const opcoes = usuario && !principalPerfis.includes(usuario.papel) ? [...principalPerfis, usuario.papel] : principalPerfis;
   const filtrados = projetos.filter(p => (!p.excluido || selecionados.includes(p.id))
     && normalizarBusca(`${p.nome} ${p.cliente ?? ''}`).includes(normalizarBusca(buscaProjeto)));
-  const titulo = !usuario ? 'Convidar Usuário' : foco === 'status' ? (ativo ? 'Ativar acesso' : 'Desativar acesso') :
+  const titulo = !usuario ? 'Cadastrar Usuário' : foco === 'status' ? (ativo ? 'Ativar acesso' : 'Desativar acesso') :
     foco === 'projetos' ? 'Gerenciar Projetos' : 'Editar usuário';
+
+  if (senhaProvisoria) return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+    <section role="dialog" aria-modal="true" aria-labelledby="senha-provisoria-titulo"
+      className="w-full max-w-md space-y-3 rounded-2xl bg-white p-5">
+      <h2 id="senha-provisoria-titulo" className="text-lg font-bold">Conta criada</h2>
+      <p className="text-sm text-slate-700">Copie a senha provisória e entregue-a ao usuário por um canal seguro. Ela será exibida somente nesta confirmação.</p>
+      <input className={`${campo} font-mono`} aria-label="Senha provisória" readOnly value={senhaProvisoria}
+        onFocus={e => e.currentTarget.select()} />
+      {feedbackCopia && <p role="status" className="text-sm">{feedbackCopia}</p>}
+      <div className="flex flex-wrap justify-end gap-2">
+        <button type="button" className={botao} onClick={async () => {
+          try { await navigator.clipboard.writeText(senhaProvisoria); setFeedbackCopia('Senha copiada.'); }
+          catch { setFeedbackCopia('Selecione a senha no campo e copie manualmente.'); }
+        }}>Copiar senha</button>
+        <button type="button" className={principal} onClick={() => concluir('Conta criada e permissões registradas.')}>Concluir</button>
+      </div>
+    </section>
+  </div>;
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
     <form role="dialog" aria-modal="true" aria-labelledby="editar-usuario" className="max-h-[90dvh] w-full max-w-xl space-y-3 overflow-y-auto rounded-2xl bg-white p-5"
@@ -99,6 +119,7 @@ function Editor({ usuario, foco, projetos, profissionais, fechar, concluir }: {
           try {
             const resultado = await salvarUsuario(dados);
             if (resultado.erro) setErro(resultado.erro);
+            else if (resultado.senhaProvisoria) setSenhaProvisoria(resultado.senhaProvisoria);
             else concluir(resultado.mensagem ?? 'Alteração salva.');
           } catch { setErro('Não foi possível confirmar a operação. Recarregue a lista antes de tentar novamente.'); }
         });
@@ -140,7 +161,7 @@ function Editor({ usuario, foco, projetos, profissionais, fechar, concluir }: {
       </label>}
       {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
       <div className="flex justify-end gap-2"><button className={botao} type="button" disabled={ocupado} onClick={fechar}>Cancelar</button>
-        <button className={principal} disabled={ocupado || (sensivel && !confirmar)}>{ocupado ? 'Salvando…' : !usuario ? 'Confirmar convite' : 'Salvar'}</button></div>
+        <button className={principal} disabled={ocupado || (sensivel && !confirmar)}>{ocupado ? 'Salvando…' : !usuario ? 'Confirmar cadastro' : 'Salvar'}</button></div>
     </form>
   </div>;
 }

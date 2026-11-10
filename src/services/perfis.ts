@@ -10,7 +10,7 @@ export function destinoPerfil(perfil: Perfil) {
 }
 
 export function rotaPermitida(perfil: Perfil, rota: string) {
-  if (rota === '/acesso-indisponivel') return true;
+  if (rota === '/acesso-indisponivel' || rota === '/meu-perfil/senha') return true;
   if (rota === '/administracao' || rota.startsWith('/administracao/')) return perfil === 'admin';
   if (perfil === 'cliente') return rota === '/acompanhamento' || rota === '/portal-cliente';
   if (perfil === 'tecnico') return rota === '/acompanhamento' || rota === '/meus-trabalhos'

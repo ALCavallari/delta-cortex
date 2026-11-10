@@ -1,9 +1,9 @@
 'use server';
 
-import { createClient } from '@supabase/supabase-js';
+import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { clienteDoAdministrador } from '@/lib/supabase/admin-usuarios';
-import { supabaseConfig } from '@/lib/supabase/config';
+import { criarClientePrivilegiado } from '@/lib/supabase/server';
 import { perfilValido } from '@/services/perfis';
 import type { AlteracaoUsuario, PainelUsuarios } from '@/services/usuarios';
 
@@ -11,15 +11,7 @@ const uuid = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const externo = (p: string) => p === 'cliente' || p === 'tecnico';
 
-function destinoConvite() {
-  try {
-    const url = new URL(process.env.DELTA_CORTEX_SITE_URL ?? '');
-    if (url.protocol !== 'https:' || url.username || url.password || url.pathname !== '/' || url.search || url.hash) return null;
-    return new URL('/auth/convite', url).href;
-  } catch { return null; }
-}
-
-export async function salvarUsuario(input: AlteracaoUsuario): Promise<{ erro?: string; mensagem?: string }> {
+export async function salvarUsuario(input: AlteracaoUsuario): Promise<{ erro?: string; mensagem?: string; senhaProvisoria?: string }> {
   const supabase = await clienteDoAdministrador();
   if (!supabase) return { erro: 'Operação exclusiva de administradores ativos.' };
   if (!input || typeof input.nome !== 'string' || !input.nome.trim() || input.nome.trim().length > 160
@@ -47,7 +39,7 @@ export async function salvarUsuario(input: AlteracaoUsuario): Promise<{ erro?: s
   )) return { erro: 'Confirme a alteração sensível antes de salvar.' };
 
   let id = input.id;
-  let enviado = false;
+  let senhaProvisoria: string | undefined;
   if (!id) {
     const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : '';
     if (email.length > 254 || !emailValido.test(email)) return { erro: 'Informe um e-mail válido.' };
@@ -58,39 +50,41 @@ export async function salvarUsuario(input: AlteracaoUsuario): Promise<{ erro?: s
       if (!input.vincularExistente) return { erro: 'A conta já existe. Confirme “Vincular conta existente” para conceder o acesso.' };
       id = conta.data;
     } else {
-      const segredo = process.env.SUPABASE_SECRET_KEY?.trim();
-      const config = supabaseConfig();
-      const redirectTo = destinoConvite();
-      if (!segredo?.startsWith('sb_secret_') || !config || !redirectTo) {
-        return { erro: 'Configure SUPABASE_SECRET_KEY e DELTA_CORTEX_SITE_URL no servidor para enviar convites.' };
+      const admin = criarClientePrivilegiado();
+      if (!admin) {
+        return { erro: 'Configure SUPABASE_SECRET_KEY no servidor para criar contas.' };
       }
       try {
-        const admin = createClient(config.url, segredo, { auth: { persistSession: false, autoRefreshToken: false } });
-        const convite = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
-        if (convite.error || !convite.data.user) {
-          if (convite.error?.code === 'email_exists' || convite.error?.code === 'user_already_exists') {
+        const senha = `Aa7!${randomBytes(24).toString('base64url')}`;
+        const contaNova = await admin.auth.admin.createUser({
+          email, password: senha, email_confirm: true, app_metadata: { delta_senha_provisoria: true },
+        });
+        if (contaNova.error || !contaNova.data.user) {
+          if (contaNova.error?.code === 'email_exists' || contaNova.error?.code === 'user_already_exists') {
             return { erro: 'A conta já existe. Confira o e-mail e tente vinculá-la explicitamente.' };
           }
-          return { erro: 'O Supabase Auth não confirmou o convite. Confira o serviço de e-mail e tente novamente.' };
+          return { erro: 'O Supabase Auth não confirmou a criação da conta. Confira a configuração e tente novamente.' };
         }
-        id = convite.data.user.id;
-        enviado = true;
-      } catch { return { erro: 'Não foi possível enviar o convite. Tente novamente.' }; }
+        id = contaNova.data.user.id;
+        senhaProvisoria = senha;
+      } catch { return { erro: 'Não foi possível confirmar a criação da conta. Confira a lista antes de tentar novamente.' }; }
     }
   }
 
   const resultado = await supabase.rpc('delta_cortex_salvar_usuario_admin', {
     p_usuario: id, p_nome: input.nome.trim(), p_papel: input.papel, p_ativo: input.ativo,
     p_profissional: input.profissionalId, p_projetos: projetos, p_novo: !input.id,
-    p_confirmar: input.confirmar, p_convite: enviado,
+    p_confirmar: input.confirmar, p_convite: false,
   });
   if (resultado.error) {
-    if (enviado) return { erro: 'O convite foi enviado, mas o acesso não foi registrado. Revise os vínculos e tente vincular a conta existente.' };
+    if (senhaProvisoria) return { erro: 'A conta foi criada, mas as permissões não foram confirmadas. Revise os vínculos e verifique o cadastro antes de tentar novamente. Para recuperar a conta, use a redefinição de senha.' };
     if (resultado.error.code === '23514') return { erro: 'O último administrador ativo deve ser preservado.' };
     if (resultado.error.code === '23505') return { erro: 'A conta ou o profissional já está vinculado. Atualize a lista.' };
     if (resultado.error.code === '23503') return { erro: 'Um projeto ou profissional selecionado está indisponível.' };
     return { erro: 'A alteração não foi confirmada. Atualize a lista e tente novamente.' };
   }
   revalidatePath('/administracao/usuarios');
-  return { mensagem: enviado ? 'Convite enviado e permissões registradas.' : 'Permissões salvas.' };
+  return senhaProvisoria
+    ? { mensagem: 'Conta criada e permissões registradas.', senhaProvisoria }
+    : { mensagem: 'Permissões salvas.' };
 }

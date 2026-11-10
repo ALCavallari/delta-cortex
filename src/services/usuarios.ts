@@ -2,7 +2,7 @@ import type { Perfil } from './perfis';
 
 export type UsuarioAdministrado = {
   id: string; nome: string | null; email: string; papel: Perfil; ativo: boolean;
-  confirmado: boolean; convidadoEm: string | null; profissionalId: string | null; projetos: string[];
+  confirmado: boolean; convidadoEm: string | null; senhaPendente: boolean; profissionalId: string | null; projetos: string[];
 };
 export type PainelUsuarios = { externoHabilitado: boolean; usuarios: UsuarioAdministrado[] };
 export type AlteracaoUsuario = {

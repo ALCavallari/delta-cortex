@@ -4,7 +4,7 @@ import { useActionState, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
-import { entrar, redefinirSenha, solicitarRecuperacao } from '@/app/auth/actions';
+import { alterarSenha, entrar, redefinirSenha, solicitarCodigoSenha, solicitarRecuperacao } from '@/app/auth/actions';
 import { InstallAppButton } from './InstallAppButton';
 
 const campo = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-[#00AFF0] focus:outline-hidden focus:ring-2 focus:ring-blue-100';
@@ -42,10 +42,12 @@ function Erro({ mensagem }: { mensagem?: string }) {
 const configuracao = 'A autenticação não está configurada. Entre em contato com a administração.';
 
 export function LoginForm({ configurado }: { configurado: boolean }) {
-  const next = useSearchParams().get('next') ?? '';
+  const parametros = useSearchParams();
+  const next = parametros.get('next') ?? '';
   const [estado, action, pendente] = useActionState(entrar, {});
   return <form action={action} className="w-full space-y-3 text-left">
     <input name="next" type="hidden" value={next} />
+    {parametros.get('senha') === 'alterada' && <p role="status" className="rounded-xl bg-lime-50 p-3 text-sm">Senha alterada. Entre com sua nova senha.</p>}
     <fieldset disabled={!configurado || pendente} className="space-y-3">
       <Email />
       <Senha rotulo="Senha" nome="password" />
@@ -83,4 +85,38 @@ export function RedefinirForm() {
     </fieldset>
     <Erro mensagem={estado.erro} />
   </form>;
+}
+
+export function AlterarSenhaForm({ primeiroAcesso = false }: { primeiroAcesso?: boolean }) {
+  const [estado, action, pendente] = useActionState(alterarSenha, {});
+  const [codigo, solicitar, solicitando] = useActionState(solicitarCodigoSenha, {});
+
+  if (estado.entrarNovamente) return <div className="space-y-3">
+    <p role="status" className="rounded-xl bg-lime-50 p-3 text-sm">{estado.mensagem}</p>
+    <Link href="/" className={principal}>Voltar ao login</Link>
+  </div>;
+
+  return <div className="space-y-3">
+    {estado.mensagem && <p role="status" className="rounded-xl bg-lime-50 p-3 text-sm">{estado.mensagem}</p>}
+    <Erro mensagem={estado.erro} />
+    <form action={action} className="space-y-3">
+      <fieldset disabled={pendente || solicitando} className="space-y-3">
+        <Senha rotulo={primeiroAcesso ? 'Senha provisória' : 'Senha atual'} nome="senhaAtual" />
+        <Senha rotulo="Nova senha" nome="password" nova />
+        <Senha rotulo="Confirmar nova senha" nome="confirmacao" nova />
+        {estado.precisaCodigo && <label className="block space-y-1 text-sm font-semibold">
+          <span>Código de segurança</span>
+          <input name="codigo" className={campo} inputMode="numeric" autoComplete="one-time-code" maxLength={10} required />
+        </label>}
+        <button type="submit" className={principal}>{pendente ? 'Salvando…' : 'Salvar alteração'}</button>
+      </fieldset>
+    </form>
+    {estado.precisaCodigo && <form action={solicitar} className="space-y-2">
+      <button type="submit" disabled={pendente || solicitando} className="text-sm font-semibold text-sky-800 underline disabled:opacity-50">
+        {solicitando ? 'Enviando…' : 'Enviar código de segurança'}
+      </button>
+      <Erro mensagem={codigo.erro} />
+      {codigo.mensagem && <p role="status" className="text-sm text-slate-700">{codigo.mensagem}</p>}
+    </form>}
+  </div>;
 }

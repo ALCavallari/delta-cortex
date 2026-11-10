@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Home, ArrowLeft } from 'lucide-react';
-import { usePerfil } from '@/components/auth/PerfilContext';
+import { useEmailPerfil, usePerfil } from '@/components/auth/PerfilContext';
+import { ALTERAR_SENHA } from '@/lib/supabase/session';
 import { destinoPerfil } from '@/services/perfis';
 import pacote from '../../package.json';
 
@@ -25,7 +26,18 @@ export function Header({
   action,
 }: HeaderProps) {
   const perfil = usePerfil();
+  const email = useEmailPerfil();
   const inicio = perfil ? destinoPerfil(perfil) : '/dashboard';
+  const menu = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    const fecharFora = (evento: PointerEvent) => {
+      if (evento.target instanceof Node && !menu.current?.contains(evento.target)) menu.current?.removeAttribute('open');
+    };
+    document.addEventListener('pointerdown', fecharFora);
+    return () => document.removeEventListener('pointerdown', fecharFora);
+  }, []);
+
   return (
     <header className="sticky top-0 z-30 w-full bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -43,25 +55,43 @@ export function Header({
               </Link>
             )}
 
-            <Link href={inicio} className="flex items-center gap-3 group">
-              <div className="flex shrink-0 items-center">
-                <Image
-                  src="/Cortex_Simplificado.png"
-                  alt="Delta CorteX"
-                  width={72}
-                  height={72}
-                  sizes="(min-width: 640px) 72px, 56px"
-                  loading="eager"
-                  className="h-auto w-14 object-contain sm:w-[72px]"
-                />
-              </div>
-              <div className="hidden md:flex flex-col border-l border-slate-200 pl-3">
-                <span className="text-base font-bold text-[#333436] tracking-tight group-hover:text-[#00AFF0] transition-colors">
-                  Delta Cortex
+            <details ref={menu} className="relative" onKeyDown={evento => {
+              if (evento.key === 'Escape' && evento.currentTarget.open) {
+                evento.currentTarget.open = false;
+                evento.currentTarget.querySelector('summary')?.focus();
+              }
+            }}>
+              <summary aria-label="Meu Perfil" className="group flex cursor-pointer list-none items-center gap-3 rounded-lg [&::-webkit-details-marker]:hidden">
+                <span className="flex shrink-0 items-center">
+                  <Image
+                    src="/Cortex_Simplificado.png"
+                    alt="Delta CorteX"
+                    width={72}
+                    height={72}
+                    sizes="(min-width: 640px) 72px, 56px"
+                    loading="eager"
+                    className="h-auto w-14 object-contain sm:w-[72px]"
+                  />
                 </span>
-                <span className="text-[10px] leading-tight tabular-nums text-slate-500">v{pacote.version}</span>
+                <span className="hidden flex-col border-l border-slate-200 pl-3 md:flex">
+                  <span className="text-base font-bold text-[#333436] tracking-tight group-hover:text-[#00AFF0] transition-colors">
+                    Delta Cortex
+                  </span>
+                  <span className="text-[10px] leading-tight tabular-nums text-slate-500">v{pacote.version}</span>
+                </span>
+              </summary>
+              <div className="absolute left-0 top-full z-40 mt-1 w-64 max-w-[calc(100vw-5rem)] space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                <div className="border-b border-slate-100 px-2 py-2">
+                  <p className="text-sm font-bold">Meu Perfil</p>
+                  {email && <p className="break-all text-xs text-slate-600">{email}</p>}
+                </div>
+                {perfil && <Link href={ALTERAR_SENHA} onClick={() => menu.current?.removeAttribute('open')}
+                  className="block rounded-lg px-2 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+                  Alterar minha senha
+                </Link>}
+                <LogoutButton menu />
               </div>
-            </Link>
+            </details>
           </div>
 
           {/* Centro: Título do Módulo (visível em telas médias/grandes) */}
@@ -85,7 +115,6 @@ export function Header({
               <Home className="w-4 h-4 text-slate-500 group-hover:text-[#00AFF0]" />
               <span className="hidden md:inline">Menu Principal</span>
             </Link>
-            <LogoutButton />
           </div>
         </div>
 

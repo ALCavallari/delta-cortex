@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { supabaseConfig } from '@/lib/supabase/config';
-import { COOKIE_RECUPERACAO, DASHBOARD, REDEFINIR, sessaoVerificada } from '@/lib/supabase/session';
+import { COOKIE_RECUPERACAO, DASHBOARD, PRIMEIRO_ACESSO, REDEFINIR, lerEstadoSenha, sessaoVerificada } from '@/lib/supabase/session';
 import { lerPerfil } from '@/lib/supabase/perfil';
 import { destinoPerfil, rotaPermitida } from '@/services/perfis';
 
@@ -40,13 +40,32 @@ export async function proxy(request: NextRequest) {
   });
   const claims = supabase ? await sessaoVerificada(supabase) : null;
   const recuperando = !!claims?.session_id && request.cookies.get(COOKIE_RECUPERACAO)?.value === claims.session_id;
+  const navegacao = request.method === 'GET' || request.method === 'HEAD';
 
-  if (pathname === '/' && claims && request.method === 'GET') {
+  if (supabase && claims && !recuperando && (pathname === '/' || !paginasPublicas.has(pathname))) {
+    const senha = await lerEstadoSenha(supabase);
+    if (!senha) {
+      if (navegacao && pathname === '/acesso-indisponivel') return semCache(resposta);
+      return semCache(navegacao && !pathname.startsWith('/api/')
+        ? NextResponse.redirect(new URL('/acesso-indisponivel', request.url))
+        : NextResponse.json({ erro: 'Não foi possível verificar o acesso.' }, { status: 503 }));
+    }
+    if (senha !== 'liberado') {
+      if (pathname === PRIMEIRO_ACESSO) return semCache(resposta);
+      return semCache(navegacao && !pathname.startsWith('/api/')
+        ? NextResponse.redirect(new URL(PRIMEIRO_ACESSO, request.url))
+        : NextResponse.json({ erro: 'Troca de senha ou novo login necessário.' }, { status: 403 }));
+    }
+  }
+  if (pathname === '/' && claims && navegacao) {
     return semCache(NextResponse.redirect(new URL(recuperando ? REDEFINIR : DASHBOARD, request.url)));
   }
   if (paginasPublicas.has(pathname)) return semCache(resposta);
   if (supabase && claims && !recuperando) {
     const perfil = await lerPerfil(supabase, claims.sub);
+    if (pathname === PRIMEIRO_ACESSO && navegacao) {
+      return semCache(NextResponse.redirect(new URL(perfil ? destinoPerfil(perfil) : '/acesso-indisponivel', request.url)));
+    }
     if (pathname === '/acesso-indisponivel' || (perfil && rotaPermitida(perfil, pathname))) return semCache(resposta);
     if (pathname.startsWith('/api/') || !['GET', 'HEAD'].includes(request.method)) {
       return semCache(NextResponse.json({ erro: 'Acesso indisponível.' }, { status: 403 }));

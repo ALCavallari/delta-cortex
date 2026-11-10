@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { PrivateHistoryGuard } from '@/components/auth/PrivateHistoryGuard';
 import { criarClienteServidor } from '@/lib/supabase/server';
-import { COOKIE_RECUPERACAO, REDEFINIR, sessaoVerificada } from '@/lib/supabase/session';
+import { COOKIE_RECUPERACAO, PRIMEIRO_ACESSO, REDEFINIR, lerEstadoSenha, sessaoVerificada } from '@/lib/supabase/session';
 import { PerfilProvider } from '@/components/auth/PerfilContext';
 import { lerPerfil } from '@/lib/supabase/perfil';
 
@@ -12,8 +12,11 @@ async function AreaVerificada({ children }: { children: ReactNode }) {
   const claims = supabase ? await sessaoVerificada(supabase) : null;
   if (!claims || !supabase) redirect('/');
   if (claims.session_id && (await cookies()).get(COOKIE_RECUPERACAO)?.value === claims.session_id) redirect(REDEFINIR);
+  const senha = await lerEstadoSenha(supabase);
+  if (!senha) return <p role="alert" className="p-6 text-sm">Não foi possível verificar o acesso. Tente novamente.</p>;
+  if (senha !== 'liberado') redirect(PRIMEIRO_ACESSO);
   const perfil = await lerPerfil(supabase, claims.sub);
-  return <PrivateHistoryGuard><PerfilProvider perfil={perfil}>{children}</PerfilProvider></PrivateHistoryGuard>;
+  return <PrivateHistoryGuard><PerfilProvider perfil={perfil} email={claims.email}>{children}</PerfilProvider></PrivateHistoryGuard>;
 }
 
 export default function PrivateLayout({ children }: { children: ReactNode }) {

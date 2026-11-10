@@ -1,6 +1,16 @@
 import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { supabaseConfig } from './config';
+
+export function criarClientePrivilegiado() {
+  const config = supabaseConfig();
+  const segredo = process.env.SUPABASE_SECRET_KEY?.trim();
+  if (!config || !segredo?.startsWith('sb_secret_')) return null;
+  return createClient(config.url, segredo, { auth: {
+    persistSession: false, autoRefreshToken: false, detectSessionInUrl: false,
+  } });
+}
 
 export async function criarClienteServidor(escreverCookies = false) {
   const config = supabaseConfig();
