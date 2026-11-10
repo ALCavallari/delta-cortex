@@ -1,6 +1,16 @@
 # DELTA CORTEX — SISTEMA INTEGRADO DE GESTÃO
 ## DELTA S ENGENHARIA & CONSULTORIA AMBIENTAL
 
+### Versionamento
+
+O Delta CorteX adota [Versionamento Semântico](https://semver.org/lang/pt-BR/) no formato `MAJOR.MINOR.PATCH`. A versão exibida na topbar vem do `package.json`.
+
+- `PATCH` para correções compatíveis com a versão anterior.
+- `MINOR` para funcionalidades novas compatíveis.
+- `MAJOR` para mudanças incompatíveis.
+
+Ao preparar uma versão, use `npm version patch --no-git-tag-version` (ou substitua `patch` por `minor` ou `major`) para atualizar os dois arquivos do npm juntos.
+
 O **Delta CorteX** é o sistema corporativo central da **Delta S Engenharia**, empresa brasileira especializada em engenharia, estudos de viabilidade, licenciamento ambiental, supervisão de obras e monitoramento socioambiental de empreendimentos de geração de energia renovável:
 - **Centrais Geradoras Hidrelétricas (CGHs)**, **Pequenas Centrais Hidrelétricas (PCHs)** e **Usinas Hidrelétricas (UHEs)**;
 - **Parques Eólicos** e **Complexos Fotovoltaicos (Usinas Solares)**;
