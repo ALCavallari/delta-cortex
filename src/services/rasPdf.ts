@@ -68,9 +68,12 @@ export async function gerarRelatorio(visita: Visita, atividades: string[], regis
   cabecalho();
   texto(14, 'bold').text('RELATÓRIO DE ACOMPANHAMENTO SISTEMÁTICO', 105, y + 5, { align: 'center' });
   y += 15;
+  const codigoRelatorio = /^AS-\d+-\d{4}$/.test(visita.identificacao)
+    ? visita.identificacao.replace(/^AS-/, 'RAS-')
+    : undefined;
   const campos = [
     ['Cliente/Projeto', [visita.clienteNome, visita.identificacaoProjeto].filter(Boolean).join(' / ')],
-    ['Identificação', visita.identificacao],
+    ['Identificação', codigoRelatorio ?? visita.identificacao],
     ['Data', dataBR(visita.data)],
     ['Responsável Técnico', visita.responsavelTecnicoNome],
   ];
@@ -159,7 +162,8 @@ export async function gerarRelatorio(visita: Visita, atividades: string[], regis
   const slug = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-]+/g, '_').slice(0, 65);
   return {
     id: crypto.randomUUID(), visitaId: visita.id, projetoId: visita.projetoId,
-    nomeArquivo: `RAS_${slug(visita.identificacao)}_${slug(visita.identificacaoProjeto || visita.clienteNome)}_${slug(visita.data)}.pdf`,
+    nomeArquivo: codigoRelatorio ? `${codigoRelatorio}.pdf`
+      : `RAS_${slug(visita.identificacao)}_${slug(visita.identificacaoProjeto || visita.clienteNome)}_${slug(visita.data)}.pdf`,
     geradoEm: new Date().toISOString(), atividades, registroIds: registros.map(r => r.id),
     fotografiaIds: fotos.map(({foto}) => foto.id), pdf: doc.output('blob'),
   };

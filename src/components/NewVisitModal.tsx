@@ -8,14 +8,11 @@ import {
   X,
   Compass,
   Building2,
-  Calendar,
-  Sparkles,
   AlertCircle,
   Play,
   Info,
   FolderKanban,
   Search,
-  ExternalLink,
 } from 'lucide-react';
 import { Cliente, Profissional, MotivoVisita, Visita, Projeto } from '@/types';
 import { contextoRestrito } from '@/services/supabaseOperacional';
@@ -55,8 +52,6 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
   const [projetoId, setProjetoId] = useState('');
   const [buscaProjeto, setBuscaProjeto] = useState('');
   const [dataVisita, setDataVisita] = useState('');
-  const [vinculacaoAutomatica, setVinculacaoAutomatica] = useState(true);
-  const [identificacao, setIdentificacao] = useState('');
 
   // Validação
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -70,11 +65,10 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
     const carregar = async () => {
       try {
         setCarregandoDados(true);
-        const [contexto, projs, visitasExistentes] = await Promise.all([
+        const [contexto, projs] = await Promise.all([
           tecnicoDesignado ? contextoRestrito() : Promise.all([ClienteRepository.listar(), ProfissionalRepository.listarAtivos()])
             .then(([clientes, profissionais]) => ({ clientes, profissionais, profissionalId: null })),
           ProjetoRepository.listar(),
-          VisitaRepository.listar(),
         ]);
         if (cancelado) return;
 
@@ -96,10 +90,6 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
         const dataHojeIso = `${ano}-${mes}-${dia}`;
         setDataVisita(dataHojeIso);
 
-        // Gerar identificação automática provisória
-        const seq = String(visitasExistentes.length + 1).padStart(3, '0');
-        const codigoAuto = `VIS-${ano}${mes}${dia}-${seq}`;
-        setIdentificacao(codigoAuto);
       } catch (err) {
         if (cancelado) return;
         console.error('Erro ao carregar dados do modal de visita:', err);
@@ -112,15 +102,6 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
     void carregar();
     return () => { cancelado = true; };
   }, [tecnicoDesignado]);
-
-  // Recalcula código automático se data ou toggle mudar
-  useEffect(() => {
-    if (vinculacaoAutomatica && dataVisita) {
-      const dLimpa = dataVisita.replace(/-/g, '');
-      const hash = Math.floor(100 + Math.random() * 900);
-      setIdentificacao(`VIS-${dLimpa}-${hash}`);
-    }
-  }, [vinculacaoAutomatica, dataVisita]);
 
   const mapaClientes = useMemo(() => {
     const map = new Map<string, ContratanteVisita>();
@@ -160,7 +141,7 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
 
     if (motivo !== 'Visita Sistemática') {
       novosErros.motivo =
-        'As ferramentas para este motivo serão desenvolvidas em etapas futuras. Selecione "Visita Sistemática".';
+        'As ferramentas para este motivo serão desenvolvidas em etapas futuras. Selecione "Acompanhamento Sistemático".';
     }
 
     if (!projetoSelecionado) {
@@ -184,10 +165,6 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
       novosErros.dataVisita = 'Informe a data da visita.';
     }
 
-    if (!identificacao.trim()) {
-      novosErros.identificacao = 'Identificação da visita é obrigatória.';
-    }
-
     setErros(novosErros);
     return Object.keys(novosErros).length === 0;
   };
@@ -203,7 +180,6 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
       setIniciando(true);
       const novaVisita = await VisitaRepository.criar({
         id: `vis-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-        identificacao: identificacao.trim(),
         motivo,
         executorId,
         responsavelTecnicoId,
@@ -272,11 +248,11 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
           {/* 10.1. Motivo */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Motivo da Visita *
+              Motivo
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {[
-                { id: 'Visita Sistemática', label: 'Visita Sistemática', desc: 'Ativo nesta etapa' },
+                { id: 'Visita Sistemática', label: 'Acompanhamento Sistemático', desc: 'Ativo nesta etapa' },
                 { id: 'Mon. Fauna', label: 'Mon. Fauna', desc: 'Etapa futura' },
                 { id: 'Mon. Flora', label: 'Mon. Flora', desc: 'Etapa futura' },
               ].map((m) => (
@@ -289,7 +265,7 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
                       setErros((prev) => ({
                         ...prev,
                         motivo:
-                          'A ferramenta de monitoramento específico será desenvolvida posteriormente. Para esta etapa, utilize "Visita Sistemática".',
+                          'A ferramenta de monitoramento específico será desenvolvida posteriormente. Para esta etapa, utilize "Acompanhamento Sistemático".',
                       }));
                     } else {
                       setErros((prev) => ({ ...prev, motivo: '' }));
@@ -459,35 +435,10 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Identificação da Visita *
-                </label>
-                <label className="inline-flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={vinculacaoAutomatica}
-                    onChange={(e) => setVinculacaoAutomatica(e.target.checked)}
-                    className="rounded text-[#00AFF0] focus:ring-[#00AFF0]"
-                  />
-                  <span>Automática</span>
-                </label>
-              </div>
-              <input
-                type="text"
-                value={identificacao}
-                onChange={(e) => setIdentificacao(e.target.value)}
-                readOnly={vinculacaoAutomatica}
-                placeholder="Ex: VIS-20261014-001"
-                className={`w-full px-3.5 py-2.5 rounded-xl border text-sm font-mono focus:outline-hidden focus:ring-2 transition-all ${
-                  vinculacaoAutomatica
-                    ? 'bg-slate-100 text-slate-600 border-slate-200 cursor-not-allowed'
-                    : 'bg-white border-slate-300 focus:border-[#00AFF0] focus:ring-blue-100'
-                }`}
-              />
-              {erros.identificacao && (
-                <p className="mt-1 text-xs text-red-500 font-medium">{erros.identificacao}</p>
-              )}
+              <p className="mb-1 text-xs font-semibold text-slate-700">Identificação da Visita</p>
+              <p className="rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
+                Gerada ao iniciar no formato AS-número-ano.
+              </p>
             </div>
           </div>
 

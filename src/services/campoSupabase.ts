@@ -63,10 +63,10 @@ export const VisitaSupabaseRepository = {
     conferirOperacao(error, 'consultar a visita');
     return data ? visitaDaLinha(data) : undefined;
   },
-  async criar(dados: Omit<Visita, 'executorNome' | 'responsavelTecnicoNome'>) {
-    if (!dados.projetoId || dados.motivo !== 'Visita Sistemática') throw new Error('Selecione um projeto para a Visita Sistemática.');
+  async criar(dados: Omit<Visita, 'identificacao' | 'executorNome' | 'responsavelTecnicoNome'>) {
+    if (!dados.projetoId || dados.motivo !== 'Visita Sistemática') throw new Error('Selecione um projeto para o Acompanhamento Sistemático.');
     return visitaDaLinha(confirmarLinha(await bancoOperacional().from(visitas).insert({
-      id: dados.id, identificacao: dados.identificacao, projeto_id: dados.projetoId, cliente_id: dados.clienteId,
+      id: dados.id, projeto_id: dados.projetoId, cliente_id: dados.clienteId,
       data_visita: dados.data, executor_id: dados.executorId, responsavel_tecnico_id: dados.responsavelTecnicoId,
     }).select('*').maybeSingle<LinhaVisita>(), 'criar a visita'));
   },
