@@ -6,6 +6,7 @@ import { lerPerfil } from '@/lib/supabase/perfil';
 import { destinoPerfil, rotaPermitida } from '@/services/perfis';
 
 const recursosPublicos = new Set([
+  '/manifest.webmanifest', '/cortex-app-192.png', '/cortex-app-512.png',
   '/favicon.ico', '/Cortex.png', '/Cortex_Simplificado.png', '/logo-delta-s.png', '/logo-delta-s.jpg',
   '/Delta%20S%20-%20Fundo%20Transparente.png', '/file.svg', '/globe.svg', '/next.svg', '/vercel.svg', '/window.svg',
 ]);

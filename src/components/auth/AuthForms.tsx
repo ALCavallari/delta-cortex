@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 import { entrar, redefinirSenha, solicitarRecuperacao } from '@/app/auth/actions';
+import { InstallAppButton } from './InstallAppButton';
 
 const campo = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-[#00AFF0] focus:outline-hidden focus:ring-2 focus:ring-blue-100';
 const principal = 'inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#00AFF0] px-4 py-2 text-sm font-bold text-[#163340] shadow-sm hover:bg-sky-400 disabled:opacity-50';
@@ -50,6 +51,7 @@ export function LoginForm({ configurado }: { configurado: boolean }) {
       <Senha rotulo="Senha" nome="password" />
       <button type="submit" className={principal}><LogIn size={18} aria-hidden />{pendente ? 'Entrando…' : 'Entrar'}</button>
     </fieldset>
+    <InstallAppButton />
     <Erro mensagem={configurado ? estado.erro : configuracao} />
     <Link href="/recuperar-senha" className="block rounded text-center text-sm font-semibold text-sky-800 hover:underline">Esqueci minha senha</Link>
   </form>;

@@ -7,7 +7,7 @@ import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Home, ArrowLeft } from 'lucide-react';
 import { usePerfil } from '@/components/auth/PerfilContext';
 import { destinoPerfil } from '@/services/perfis';
-import { version } from '../../package.json';
+import pacote from '../../package.json';
 
 interface HeaderProps {
   title?: string;
@@ -59,7 +59,7 @@ export function Header({
                 <span className="text-base font-bold text-[#333436] tracking-tight group-hover:text-[#00AFF0] transition-colors">
                   Delta Cortex
                 </span>
-                <span className="text-[10px] leading-tight tabular-nums text-slate-500">v{version}</span>
+                <span className="text-[10px] leading-tight tabular-nums text-slate-500">v{pacote.version}</span>
               </div>
             </Link>
           </div>

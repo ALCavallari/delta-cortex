@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     'Sistema integrado de engenharia, consultoria ambiental e acompanhamento sistemático da Delta S Engenharia.',
   icons: {
     icon: '/logo-delta-s.png',
-    apple: '/logo-delta-s.png',
+    apple: '/cortex-app-192.png',
   },
 };
 
