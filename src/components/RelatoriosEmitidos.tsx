@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FileDown, Pencil, Trash2 } from 'lucide-react';
+import { Eye, FileDown, Pencil, Trash2 } from 'lucide-react';
 import { RelatorioRepository } from '@/services/repositoriosOperacionais';
 import { baixarRelatorio } from '@/services/reportDownload';
 import type { RelatorioListado } from '@/services/campoSupabase';
@@ -55,6 +55,12 @@ export function RelatoriosEmitidos({ projetoId, visita, fechar, onAlterado }: {
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
+            {projetoId && !visita && <a className={botao}
+              href={`/acompanhamento/relatorios/${encodeURIComponent(r.id)}`}
+              target="_blank" rel="noopener noreferrer"
+              aria-label={`Visualizar ${r.nomeArquivo} em nova aba`}>
+              <Eye size={15} aria-hidden /> Visualizar
+            </a>}
             <button className={botao} type="button" disabled={ocupado || !!excluir} onClick={() => void executar(async () => {
               baixarRelatorio(await RelatorioRepository.baixarPorId(r.id));
             })}><FileDown size={15} aria-hidden /> Baixar PDF</button>
