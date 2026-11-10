@@ -23,8 +23,8 @@ const resolvida = (r: RegistroCampo) => r.situacao === 'resolvido';
 const temCoordenadas = ({ latitude, longitude }: { latitude: number; longitude: number }) =>
   Number.isFinite(latitude) && Number.isFinite(longitude) && validarCoordenadas(latitude, longitude);
 
-export function ProjectOccurrenceMap({ projetos, clientes, carregando, portal = false }: {
-  projetos: Projeto[]; clientes: Pick<Cliente, 'id' | 'nomeRazaoSocial'>[]; carregando: boolean; portal?: boolean;
+export function ProjectOccurrenceMap({ projetos, clientes, carregando, portal = false, restrito = portal }: {
+  projetos: Projeto[]; clientes: Pick<Cliente, 'id' | 'nomeRazaoSocial'>[]; carregando: boolean; portal?: boolean; restrito?: boolean;
 }) {
   const [busca, setBusca] = useState('');
   const [projetoId, setProjetoId] = useState('');
@@ -37,7 +37,7 @@ export function ProjectOccurrenceMap({ projetos, clientes, carregando, portal = 
 
   if (carregando) return <p role="status" className="p-4 text-sm text-slate-600">Carregando projetos…</p>;
   if (!projetos.length) return <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm">
-    {portal ? 'Nenhum projeto autorizado. Procure a administração.' : 'Nenhum projeto cadastrado.'}
+    {restrito ? 'Nenhum projeto autorizado. Procure a administração.' : 'Nenhum projeto cadastrado.'}
   </p>;
 
   return <div className="space-y-4">

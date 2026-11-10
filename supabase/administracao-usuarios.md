@@ -5,8 +5,8 @@ O projeto de produção é `znbfnayblyclavcjsbvg`. A migration [20261109175904_a
 | Perfil | Entrada | Escopo |
 | --- | --- | --- |
 | Administrador | `/dashboard` e `/administracao/usuarios` | Acesso global, administração, convites e vínculos |
-| Cliente | `/portal-cliente` | Projetos autorizados e projeção de ocorrências para o mapa, somente leitura |
-| Técnico | `/meus-trabalhos` e ferramenta de visita | Visitas, registros e fotografias dos projetos designados, além das camadas desses projetos |
+| Cliente | Trabalho de Campo em `/acompanhamento` | Aba Mapa de Ocorrências dos projetos autorizados, somente leitura |
+| Técnico | Trabalho de Campo em `/acompanhamento` e ferramenta de visita | Abas Trabalhos Cadastrados e Mapa de Ocorrências dos projetos designados, com visitas, registros, fotografias e camadas desses projetos |
 | Editor ou leitor legado | `/dashboard` | Comportamento anterior, sem Administração de Usuários |
 
 `acessos_usuarios` mantém papel, estado, nome de exibição, vínculo profissional opcional e data do convite. `usuarios_projetos` registra autorização explícita por usuário e projeto, sem derivar permissões de CPF ou CNPJ. Revogações mantêm o histórico. A auditoria privada registra autor, usuário afetado, operação, data e projeto quando aplicável. A alteração de perfil e os vínculos são gravados na mesma transação. A operação serializa alterações administrativas para preservar o último administrador ativo.

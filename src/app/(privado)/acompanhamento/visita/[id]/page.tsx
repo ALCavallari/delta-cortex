@@ -57,7 +57,7 @@ const LeafletMap = dynamic(() => import('@/components/Map/LeafletMap'), {
 function VisitaOperacionalContent() {
   const router = useRouter();
   const tecnicoDesignado = usePerfil() === 'tecnico';
-  const voltar = tecnicoDesignado ? '/meus-trabalhos' : '/acompanhamento';
+  const voltar = '/acompanhamento';
   const params = useParams();
   const visitaId = (params?.id as string) || '';
 

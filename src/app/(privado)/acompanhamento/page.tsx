@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { baixarRelatorio } from '@/services/reportDownload';
 import { ShareReportModal } from '@/components/ShareReportModal';
@@ -9,6 +9,9 @@ import { ProjectOccurrenceMap } from '@/components/Map/ProjectOccurrenceMap';
 import { Header } from '@/components/Header';
 import { NewVisitModal } from '@/components/NewVisitModal';
 import { Visita, Cliente, Projeto, Profissional } from '@/types';
+import { usePerfil } from '@/components/auth/PerfilContext';
+import type { Perfil } from '@/services/perfis';
+import { contextoRestrito } from '@/services/supabaseOperacional';
 import {
   VisitaRepository,
   RelatorioRepository,
@@ -37,17 +40,27 @@ import {
 } from 'lucide-react';
 
 export default function AcompanhamentoDashboardPage() {
+  const perfil = usePerfil();
+  if (!perfil) return <p role="status" className="p-6 text-sm">Acesso ao Trabalho de Campo indisponível.</p>;
+  return <TrabalhoDeCampo key={perfil} perfil={perfil} />;
+}
+
+function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
+  const clienteExterno = perfil === 'cliente';
+  const tecnicoDesignado = perfil === 'tecnico';
+  const restrito = clienteExterno || tecnicoDesignado;
   const [visitaCompartilhada, setVisitaCompartilhada] = useState<Visita | null>(null);
   const [baixando, setBaixando] = useState<string | null>(null);
   const [comRelatorio, setComRelatorio] = useState<Set<string>>(new Set());
-  const [aba, setAba] = useState<'trabalhos' | 'mapa'>('trabalhos');
+  const [aba, setAba] = useState<'trabalhos' | 'mapa'>(clienteExterno ? 'mapa' : 'trabalhos');
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [visitasExcluidas, setVisitasExcluidas] = useState<Visita[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<Pick<Cliente, 'id' | 'nomeRazaoSocial'>[]>([]);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [profissionais, setProfissionais] = useState<Pick<Profissional, 'id' | 'nome'>[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState('');
+  const semProjetoDesignado = tecnicoDesignado && projetos.length === 0;
 
   // Modais
   const [modalNovaVisitaAberto, setModalNovaVisitaAberto] = useState(false);
@@ -73,44 +86,39 @@ export default function AcompanhamentoDashboardPage() {
   const [ordenacao, setOrdenacao] = useState<'data-desc' | 'data-asc' | 'projeto-asc' | 'cliente-asc'>('data-desc');
   const [painelFiltrosAberto, setPainelFiltrosAberto] = useState(false);
 
-  const carregarDados = async () => {
-    try {
-      setCarregando(true);
-      setErroCarga('');
-      const [listaVisitas, listaExcluidas, listaClientes, listaProjetos, listaProfissionais] =
-        await Promise.all([
-          VisitaRepository.listar(false),
-          VisitaRepository.listarExcluidas(),
-          ClienteRepository.listar(),
-          ProjetoRepository.listar(),
-          ProfissionalRepository.listar(),
-        ]);
-
-      setVisitas(listaVisitas);
-      setVisitasExcluidas(listaExcluidas);
-      setClientes(listaClientes);
-      setProjetos(listaProjetos);
-      setProfissionais(listaProfissionais);
-      try { setComRelatorio(await RelatorioRepository.visitasComRelatorio()); }
-      catch { showToast('Não foi possível consultar os relatórios salvos.'); }
-    } catch (err) {
-      setErroCarga(err instanceof Error ? err.message : 'Não foi possível carregar os trabalhos.');
-      console.error('Erro ao carregar dados do acompanhamento:', err);
-    } finally {
-      setCarregando(false);
-    }
-  };
-
-  useEffect(() => {
-    carregarDados();
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 4000);
   }, []);
 
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => {
-      setToastMsg(null);
-    }, 4000);
-  };
+  const carregarDados = useCallback(() =>
+    Promise.all([
+      clienteExterno ? [] : VisitaRepository.listar(false),
+      restrito ? [] : VisitaRepository.listarExcluidas(),
+      ProjetoRepository.listar(),
+      restrito ? contextoRestrito() : Promise.all([ClienteRepository.listar(), ProfissionalRepository.listar()])
+        .then(([clientes, profissionais]) => ({ clientes, profissionais })),
+    ]).then(async ([listaVisitas, listaExcluidas, listaProjetos, contexto]) => {
+      setErroCarga('');
+      setVisitas(listaVisitas);
+      setVisitasExcluidas(listaExcluidas);
+      setClientes(contexto.clientes);
+      setProjetos(listaProjetos);
+      setProfissionais(contexto.profissionais);
+      if (!restrito) {
+        try { setComRelatorio(await RelatorioRepository.visitasComRelatorio()); }
+        catch { showToast('Não foi possível consultar os relatórios salvos.'); }
+      }
+    }).catch(err => {
+      setErroCarga(err instanceof Error ? err.message : 'Não foi possível carregar os trabalhos.');
+      console.error('Erro ao carregar dados do acompanhamento:', err);
+    }).finally(() => {
+      setCarregando(false);
+    }), [clienteExterno, restrito, showToast]);
+
+  useEffect(() => {
+    void carregarDados();
+  }, [carregarDados]);
 
   // Exclusão lógica de visita
   const handleConfirmarExclusaoVisita = async () => {
@@ -317,12 +325,13 @@ export default function AcompanhamentoDashboardPage() {
       <Header
         title="Trabalho de Campo"
         subtitle={descricoesModulos.trabalhoCampo}
-        backHref="/dashboard"
+        backHref={restrito ? undefined : '/dashboard'}
         backLabel="Menu Principal"
         action={aba === 'trabalhos' ? (
           <button
             onClick={() => setModalNovaVisitaAberto(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-xs sm:text-sm"
+            disabled={semProjetoDesignado}
+            className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-xs sm:text-sm disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             <span>Novo Trabalho</span>
@@ -343,7 +352,7 @@ export default function AcompanhamentoDashboardPage() {
           {([
             ['trabalhos', 'Trabalhos Cadastrados'],
             ['mapa', 'Mapa de Ocorrências'],
-          ] as const).map(([id, titulo]) => (
+          ] as const).filter(([id]) => !clienteExterno || id === 'mapa').map(([id, titulo]) => (
             <button key={id} type="button" aria-pressed={aba === id} onClick={() => setAba(id)}
               className={`min-h-11 flex-1 border-b-2 px-2 py-2 text-sm font-semibold sm:flex-none sm:px-5 ${aba === id
                 ? 'border-[#00AFF0] text-sky-800' : 'border-transparent text-slate-600 hover:bg-slate-100'}`}>
@@ -355,7 +364,7 @@ export default function AcompanhamentoDashboardPage() {
           <section aria-labelledby="titulo-mapa-ocorrencias" className="space-y-4">
             <h1 id="titulo-mapa-ocorrencias" className="text-2xl font-bold text-[#333436]">Mapa de Ocorrências</h1>
             {erroCarga ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{erroCarga}</p> :
-              <ProjectOccurrenceMap projetos={projetos} clientes={clientes} carregando={carregando} />}
+              <ProjectOccurrenceMap projetos={projetos} clientes={clientes} carregando={carregando} portal={clienteExterno} restrito={restrito} />}
           </section>
         ) : <>
         {/* Cabeçalho da Seção & Ações de Topo */}
@@ -384,7 +393,8 @@ export default function AcompanhamentoDashboardPage() {
 
             <button
               onClick={() => setModalNovaVisitaAberto(true)}
-              className="sm:hidden inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white bg-[#00AFF0] text-xs shadow-md"
+              disabled={semProjetoDesignado}
+              className="sm:hidden inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white bg-[#00AFF0] text-xs shadow-md disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
               <span>Novo Trabalho</span>
@@ -413,7 +423,7 @@ export default function AcompanhamentoDashboardPage() {
               <ArrowUpDown className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <select
                 value={ordenacao}
-                onChange={(e) => setOrdenacao(e.target.value as any)}
+                onChange={(e) => setOrdenacao(e.target.value as typeof ordenacao)}
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:outline-hidden focus:border-[#00AFF0] focus:ring-2 focus:ring-blue-100 bg-white cursor-pointer"
               >
                 <option value="data-desc">Visitas mais recentes</option>
@@ -630,16 +640,16 @@ export default function AcompanhamentoDashboardPage() {
                 <Compass className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-bold text-[#333436] mb-1">
-                {visitas.length === 0
+                {semProjetoDesignado ? 'Nenhum projeto autorizado' : visitas.length === 0
                   ? 'Nenhuma visita de acompanhamento criada'
                   : 'Nenhuma visita encontrada com os filtros aplicados'}
               </h3>
               <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-                {visitas.length === 0
+                {semProjetoDesignado ? 'Procure a administração para receber acesso a um projeto.' : visitas.length === 0
                   ? 'Inicie uma nova visita sistemática para abrir a ferramenta de mapa georreferenciado e registrar observações ou ocorrências com fotos e coordenadas UTM.'
                   : 'Tente ajustar os critérios de pesquisa ou clique no botão Limpar Filtros para exibir todas as visitas ativas.'}
               </p>
-              {visitas.length === 0 ? (
+              {!semProjetoDesignado && (visitas.length === 0 ? (
                 <button
                   onClick={() => setModalNovaVisitaAberto(true)}
                   className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] transition-all shadow-md text-sm"
@@ -655,7 +665,7 @@ export default function AcompanhamentoDashboardPage() {
                   <RotateCcw className="w-4 h-4" />
                   <span>Limpar Filtros</span>
                 </button>
-              )}
+              ))}
             </div>
           ) : (
             <div className="space-y-3.5">
@@ -698,7 +708,7 @@ export default function AcompanhamentoDashboardPage() {
                           <MapPin className="w-3.5 h-3.5 text-slate-400" />
                           <span>Projeto: <strong>{visita.identificacaoProjeto}</strong></span>
                         </p>
-                      ) : (
+                      ) : !restrito && (
                         /* Compatibilidade com visitas antigas sem projeto vinculado */
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs text-slate-400 italic">
@@ -771,14 +781,14 @@ export default function AcompanhamentoDashboardPage() {
                         onClick={() => setVisitaCompartilhada(visita)}><Share2 className="h-4 w-4" /></button>
                     </>}
                     {/* Botão de Excluir Visita (Lixeira) */}
-                    <button
+                    {!restrito && <button
                       type="button"
                       onClick={() => setVisitaParaExcluir(visita)}
                       className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-transparent hover:border-red-200"
                       title="Excluir Visita"
                     >
                       <Trash2 className="w-4 h-4" />
-                    </button>
+                    </button>}
                   </div>
                 </div>
               ))}
@@ -793,6 +803,7 @@ export default function AcompanhamentoDashboardPage() {
       {/* Modal Novo Trabalho */}
       <NewVisitModal
         isOpen={modalNovaVisitaAberto}
+        tecnicoDesignado={tecnicoDesignado}
         onClose={() => setModalNovaVisitaAberto(false)}
         onVisitCreated={() => carregarDados()}
       />

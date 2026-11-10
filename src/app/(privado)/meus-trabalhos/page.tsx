@@ -1,9 +1,5 @@
-import { Suspense } from 'react';
-import { AreaPerfil } from '@/components/auth/AreaPerfil';
-import { ProjetosDesignados } from '@/components/ProjetosDesignados';
+import { redirect } from 'next/navigation';
 
 export default function MeusTrabalhos() {
-  return <Suspense fallback={<p role="status" className="p-5">Verificando acesso…</p>}>
-    <AreaPerfil esperado="tecnico"><ProjetosDesignados portal={false} /></AreaPerfil>
-  </Suspense>;
+  redirect('/acompanhamento');
 }
