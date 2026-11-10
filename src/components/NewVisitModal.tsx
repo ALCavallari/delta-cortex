@@ -27,7 +27,6 @@ import {
 } from '@/services/repositoriosOperacionais';
 
 interface NewVisitModalProps {
-  isOpen: boolean;
   onClose: () => void;
   onVisitCreated?: (visita: Visita) => void;
   tecnicoDesignado?: boolean;
@@ -36,7 +35,11 @@ interface NewVisitModalProps {
 type ContratanteVisita = Pick<Cliente, 'id' | 'nomeRazaoSocial'> & Partial<Pick<Cliente, 'cpfCnpj' | 'cidade' | 'estado'>>;
 type TecnicoVisita = Pick<Profissional, 'id' | 'nome'>;
 
-export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignado = false }: NewVisitModalProps) {
+function impedirEnvioNaBusca(evento: React.KeyboardEvent<HTMLInputElement>) {
+  if (evento.key === 'Enter' && !evento.nativeEvent.isComposing) evento.preventDefault();
+}
+
+export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = false }: NewVisitModalProps) {
   const router = useRouter();
 
   const [clientes, setClientes] = useState<ContratanteVisita[]>([]);
@@ -62,7 +65,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
 
   // Inicializa dados ao abrir
   useEffect(() => {
-    if (!isOpen) return;
+    let cancelado = false;
 
     const carregar = async () => {
       try {
@@ -73,6 +76,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
           ProjetoRepository.listar(),
           VisitaRepository.listar(),
         ]);
+        if (cancelado) return;
 
         setClientes(contexto.clientes);
         setProfissionais(contexto.profissionais);
@@ -97,17 +101,17 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
         const codigoAuto = `VIS-${ano}${mes}${dia}-${seq}`;
         setIdentificacao(codigoAuto);
       } catch (err) {
+        if (cancelado) return;
         console.error('Erro ao carregar dados do modal de visita:', err);
         setErroGeral(err instanceof Error ? err.message : 'Não foi possível carregar os dados da visita.');
       } finally {
-        setCarregandoDados(false);
+        if (!cancelado) setCarregandoDados(false);
       }
     };
 
-    carregar();
-    setErros({});
-    setErroGeral(null);
-  }, [isOpen, tecnicoDesignado]);
+    void carregar();
+    return () => { cancelado = true; };
+  }, [tecnicoDesignado]);
 
   // Recalcula código automático se data ou toggle mudar
   useEffect(() => {
@@ -151,8 +155,6 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
     if (erros.projetoId) setErros((prev) => ({ ...prev, projetoId: '' }));
   };
 
-  if (!isOpen) return null;
-
   const validar = (): boolean => {
     const novosErros: Record<string, string> = {};
 
@@ -192,6 +194,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
 
   const handleIniciar = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (iniciando || carregandoDados) return;
     setErroGeral(null);
 
     if (!validar() || !projetoSelecionado || !clienteDoProjeto) return;
@@ -224,6 +227,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
     } catch (err) {
       console.error('Erro ao iniciar visita:', err);
       setErroGeral(err instanceof Error ? err.message : 'Falha ao salvar a visita.');
+    } finally {
       setIniciando(false);
     }
   };
@@ -249,6 +253,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
           <button
             type="button"
             onClick={onClose}
+            disabled={iniciando}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
@@ -361,6 +366,7 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
                         type="text"
                         value={buscaProjeto}
                         onChange={(e) => setBuscaProjeto(e.target.value)}
+                        onKeyDown={impedirEnvioNaBusca}
                         placeholder="Pesquisar por projeto ou cliente contratante..."
                         className="w-full pl-9 pr-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-hidden focus:border-[#00AFF0] bg-slate-50"
                       />
@@ -520,7 +526,7 @@ function SeletorTecnico({ rotulo, tecnicos, value, onChange, erro, fixo = false 
   const classe = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm focus:border-[#00AFF0]';
   return <div className="min-w-0 space-y-2">
     {!fixo && <input type="search" aria-label={`Pesquisar por nome: ${rotulo}`} placeholder="Pesquisar por nome" className={classe}
-      value={busca} onChange={e => setBusca(e.target.value)} />}
+      value={busca} onChange={e => setBusca(e.target.value)} onKeyDown={impedirEnvioNaBusca} />}
     <label className="block text-xs font-semibold text-slate-700">{rotulo} *
       <select className={`${classe} mt-1`} value={value} disabled={fixo} onChange={e => onChange(e.target.value)}>
         <option value="">Selecione um técnico</option>

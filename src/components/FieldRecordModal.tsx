@@ -8,12 +8,9 @@ import {
   Eye,
   Trash2,
   Save,
-  CheckCircle2,
   MapPin,
-  Calendar,
   AlertCircle,
   Maximize2,
-  Upload,
 } from 'lucide-react';
 import {
   TipoRegistro,
@@ -31,6 +28,7 @@ import { RegistroCampoRepository } from '@/services/repositoriosOperacionais';
 interface FieldRecordModalProps {
   onClose: () => void;
   visita: Visita;
+  registro?: RegistroCampo;
   capturedLat: number;
   capturedLng: number;
   capturedAccuracy: number | null;
@@ -40,34 +38,48 @@ interface FieldRecordModalProps {
 export function FieldRecordModal({
   onClose,
   visita,
+  registro,
   capturedLat,
   capturedLng,
   capturedAccuracy,
   onRecordSaved,
 }: FieldRecordModalProps) {
   // Campos do formulário
-  const [tipo, setTipo] = useState<TipoRegistro>('Observacao');
-  const [meio, setMeio] = useState<MeioAmbiental>('Flora');
-  const [descricao, setDescricao] = useState('');
-  const [gravidade, setGravidade] = useState<GravidadeOcorrencia | ''>('');
+  const [tipo, setTipo] = useState<TipoRegistro>(registro?.tipo ?? 'Observacao');
+  const [meio, setMeio] = useState<MeioAmbiental>(registro?.meio ?? 'Flora');
+  const [descricao, setDescricao] = useState(registro?.descricao ?? '');
+  const [gravidade, setGravidade] = useState<GravidadeOcorrencia | ''>(registro?.gravidade ?? '');
+  const preservarTipo = !!registro && (registro.visitaId !== visita.id || !!registro.eventos?.length);
 
   // Fotografias processadas com carimbo Canvas
-  const [fotos, setFotos] = useState<Fotografia[]>([]);
+  const [fotos, setFotos] = useState<Fotografia[]>(registro?.fotos ?? []);
+  const fotosOriginaisRemovidas = registro?.fotos?.filter(original => !fotos.some(foto => foto.id === original.id)) ?? [];
   const [processandoFoto, setProcessandoFoto] = useState(false);
   const [fotoVisualizando, setFotoVisualizando] = useState<string | null>(null);
 
-  // Coordenadas estáveis capturadas no momento da abertura
-  const latEstavel = capturedLat;
-  const lngEstavel = capturedLng;
-  const precisaoEstavel = capturedAccuracy;
-  const [utmEstavel] = useState<CoordenadasUTM | null>(() => {
+  const [latitude, setLatitude] = useState(String(capturedLat));
+  const [longitude, setLongitude] = useState(String(capturedLng));
+  const latEstavel = latitude.trim() ? Number(latitude.replace(',', '.')) : NaN;
+  const lngEstavel = longitude.trim() ? Number(longitude.replace(',', '.')) : NaN;
+  const posicaoAlterada = latEstavel !== capturedLat || lngEstavel !== capturedLng;
+  const precisaoEstavel = posicaoAlterada ? null : capturedAccuracy;
+  const utmEstavel = React.useMemo<CoordenadasUTM | null>(() => {
+    if (registro && !posicaoAlterada) {
+      return {
+        zona: registro.utmZona, hemisferio: registro.utmHemisferio, easting: registro.utmEasting,
+        northing: registro.utmNorthing, referenciaGeodesica: registro.referenciaGeodesica,
+        formatado: `Zona ${registro.utmZona}${registro.utmHemisferio} · E: ${registro.utmEasting} m · N: ${registro.utmNorthing} m`,
+      };
+    }
+    if (!Number.isFinite(latEstavel) || !Number.isFinite(lngEstavel) ||
+      latEstavel < -80 || latEstavel > 84 || Math.abs(lngEstavel) > 180) return null;
     try {
-      return converterParaUTM(capturedLat, capturedLng, false, 'SIRGAS 2000');
+      return converterParaUTM(latEstavel, lngEstavel, false, 'SIRGAS 2000');
     } catch {
       return null;
     }
-  });
-  const [momentoAbertura] = useState(() => new Date());
+  }, [registro, posicaoAlterada, latEstavel, lngEstavel]);
+  const [momentoAbertura] = useState(() => registro ? new Date(registro.registradoEm) : new Date());
 
   // Estados de controle
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -90,8 +102,8 @@ export function FieldRecordModal({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    if (latEstavel === null || lngEstavel === null || !utmEstavel) {
-      alert('Aguarde a obtenção das coordenadas GPS antes de fotografar.');
+    if (!utmEstavel) {
+      alert('Informe coordenadas válidas antes de anexar fotografias.');
       return;
     }
 
@@ -118,7 +130,7 @@ export function FieldRecordModal({
         const novaFoto: Fotografia = {
           id: `foto-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           registroCampoId: '', // será atribuído ao salvar o registro
-          visitaId: visita.id,
+          visitaId: registro?.visitaId ?? visita.id,
           dataUrl: dataUrlEstampada,
           capturadaEm: dataHoraFoto.toISOString(),
           utmInfo: `UTM ${utmEstavel.referenciaGeodesica} · ${utmEstavel.formatado}`,
@@ -127,9 +139,9 @@ export function FieldRecordModal({
 
         setFotos((prev) => [...prev, novaFoto]);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Erro ao processar imagem no Canvas:', err);
-      alert('Falha ao aplicar legenda na fotografia: ' + (err?.message || ''));
+      alert('Falha ao aplicar legenda na fotografia: ' + (err instanceof Error ? err.message : ''));
     } finally {
       setProcessandoFoto(false);
       if (fileInputRef.current) {
@@ -163,9 +175,10 @@ export function FieldRecordModal({
     }
 
     // Coordenadas válidas são estritamente obrigatórias
-    if (latEstavel === null || lngEstavel === null || !utmEstavel) {
-      novosErros.coordenadas =
-        'Não foi possível obter uma coordenada geográfica válida do GPS. O registro não pode ser salvo com coordenadas fictícias.';
+    if (!utmEstavel) {
+      novosErros.coordenadas = registro
+        ? 'Informe uma latitude e uma longitude válidas para a projeção UTM.'
+        : 'Não foi possível obter uma coordenada geográfica válida do GPS.';
     }
 
     setErros(novosErros);
@@ -174,13 +187,13 @@ export function FieldRecordModal({
 
   const handleRegistrar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (salvando || !validar()) return;
+    if (salvando || processandoFoto || !validar() || !utmEstavel) return;
     setErroGeral(null);
     try {
       setSalvando(true);
 
       const agora = new Date().toISOString();
-      const registroId = `reg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const registroId = registro?.id ?? `reg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
       // Atualiza o registroCampoId nas fotos capturadas
       const fotosVinculadas: Fotografia[] = fotos.map((f) => ({
@@ -189,32 +202,31 @@ export function FieldRecordModal({
       }));
 
       const novoRegistro: RegistroCampo = {
-        projetoId: visita.projetoId,
-        visitaOrigemIdentificacao: visita.identificacao,
-        tecnicoId: visita.executorId,
-        tecnicoNome: visita.executorNome,
-        ...(tipo === 'Ocorrencia' ? { situacao: 'em_aberto' as const } : {}),
+        ...(registro ?? {
+          projetoId: visita.projetoId, visitaId: visita.id, visitaOrigemIdentificacao: visita.identificacao,
+          tecnicoId: visita.executorId, tecnicoNome: visita.executorNome, registradoEm: agora,
+        }),
+        situacao: tipo === 'Ocorrencia' ? registro?.situacao ?? 'em_aberto' : undefined,
         id: registroId,
-        visitaId: visita.id,
         tipo,
         meio,
         descricao: descricao.trim(),
         gravidade: tipo === 'Ocorrencia' && gravidade ? (gravidade as GravidadeOcorrencia) : undefined,
-        latitude: latEstavel!,
-        longitude: lngEstavel!,
+        latitude: latEstavel,
+        longitude: lngEstavel,
         precisaoMetros: precisaoEstavel ?? undefined,
-        utmZona: utmEstavel!.zona,
-        utmHemisferio: utmEstavel!.hemisferio,
-        utmEasting: utmEstavel!.easting,
-        utmNorthing: utmEstavel!.northing,
-        referenciaGeodesica: utmEstavel!.referenciaGeodesica,
-        registradoEm: agora,
+        utmZona: utmEstavel.zona,
+        utmHemisferio: utmEstavel.hemisferio,
+        utmEasting: utmEstavel.easting,
+        utmNorthing: utmEstavel.northing,
+        referenciaGeodesica: utmEstavel.referenciaGeodesica,
         fotos: fotosVinculadas,
       };
 
-      await RegistroCampoRepository.salvar(novoRegistro);
-
-      onRecordSaved({ ...novoRegistro, versao: 0 });
+      let versao = 0;
+      if (registro) versao = await RegistroCampoRepository.editar(visita.id, registro, novoRegistro);
+      else await RegistroCampoRepository.salvar(novoRegistro);
+      onRecordSaved({ ...novoRegistro, versao });
       onClose();
     } catch (err) {
       console.error('Erro ao gravar registro de campo:', err);
@@ -245,10 +257,10 @@ export function FieldRecordModal({
               </div>
               <div>
                 <h2 className="text-lg font-bold text-[#333436]">
-                  Novo Registro de Campo
+                  {registro ? 'Editar Registro de Campo' : 'Novo Registro de Campo'}
                 </h2>
                 <p className="text-xs text-slate-500">
-                  {visita.identificacao} • {visita.clienteNome}
+                  {registro?.visitaOrigemIdentificacao ?? visita.identificacao} • {visita.clienteNome}
                 </p>
               </div>
             </div>
@@ -277,11 +289,22 @@ export function FieldRecordModal({
               <div className="flex items-center justify-between text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-[#00AFF0]" />
-                  Posição Estabilizada no Disparo
+                  {registro ? 'Coordenadas do Registro' : 'Posição Estabilizada no Disparo'}
                 </span>
                 <span>{momentoAbertura.toLocaleTimeString('pt-BR')}</span>
               </div>
 
+              {registro && <div className="grid grid-cols-2 gap-2">
+                <label>Latitude
+                  <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2" inputMode="decimal"
+                    value={latitude} onChange={e => setLatitude(e.target.value)} disabled={processandoFoto} />
+                </label>
+                <label>Longitude
+                  <input className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-2" inputMode="decimal"
+                    value={longitude} onChange={e => setLongitude(e.target.value)} disabled={processandoFoto} />
+                </label>
+                {posicaoAlterada && fotos.length > 0 && <p className="col-span-2 text-slate-600">As fotos já anexadas mantêm a estampa original.</p>}
+              </div>}
               {utmEstavel ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-slate-700">
                   <div>
@@ -308,7 +331,7 @@ export function FieldRecordModal({
                     )}
                   </div>
                 </div>
-              ) : (
+              ) : !registro && (
                 <div className="pt-1 space-y-2">
                   <div className="text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200 flex items-start gap-2 text-xs">
                     <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
@@ -332,6 +355,7 @@ export function FieldRecordModal({
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
+                  disabled={preservarTipo}
                   onClick={() => handleTipoChange('Observacao')}
                   className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
                     tipo === 'Observacao'
@@ -345,6 +369,7 @@ export function FieldRecordModal({
 
                 <button
                   type="button"
+                  disabled={preservarTipo}
                   onClick={() => handleTipoChange('Ocorrencia')}
                   className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all ${
                     tipo === 'Ocorrencia'
@@ -356,6 +381,7 @@ export function FieldRecordModal({
                   <span>Ocorrência</span>
                 </button>
               </div>
+              {preservarTipo && <p className="mt-2 text-xs text-slate-600">O tipo fica fixo para preservar o histórico do registro.</p>}
             </div>
 
             {/* 15.2. Meio (Fauna, Físico, Flora, Social) */}
@@ -469,6 +495,11 @@ export function FieldRecordModal({
                   <Camera className="w-4 h-4 text-[#00AFF0]" />
                   <span>{processandoFoto ? 'Aplicando Legenda Canvas...' : 'Tirar Fotografia / Anexar'}</span>
                 </button>
+                {fotosOriginaisRemovidas.length > 0 && <button type="button"
+                  onClick={() => setFotos(atuais => [...atuais, ...fotosOriginaisRemovidas])}
+                  className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+                  Restaurar fotos removidas
+                </button>}
               </div>
 
               {/* Miniaturas das fotos estampadas */}
@@ -526,11 +557,11 @@ export function FieldRecordModal({
               </button>
               <button
                 type="submit"
-                disabled={salvando}
+                disabled={salvando || processandoFoto}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 disabled:opacity-70"
               >
                 <Save className="w-4 h-4" />
-                <span>{salvando ? 'Gravando Registro...' : 'Registrar'}</span>
+                <span>{salvando ? 'Gravando Registro...' : registro ? 'Salvar Alterações' : 'Registrar'}</span>
               </button>
             </div>
             </fieldset>

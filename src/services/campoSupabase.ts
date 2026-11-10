@@ -204,6 +204,40 @@ export const RegistroCampoSupabaseRepository = {
     conferirOperacao(error, 'consultar o registro');
     return data ? registroDaLinha(data, true) : undefined;
   },
+  async editar(visitaId: string, original: RegistroCampo, atualizado: RegistroCampo) {
+    if (original.versao == null) throw new Error('Atualize a consulta antes de editar o registro.');
+    const fotosOriginais = new Set(original.fotos?.map(foto => foto.id));
+    const fotosAtuais = new Set(atualizado.fotos?.map(foto => foto.id));
+    const enviadas: Awaited<ReturnType<typeof enviarFoto>>[] = [];
+    try {
+      for (const foto of atualizado.fotos ?? []) {
+        if (!fotosOriginais.has(foto.id)) enviadas.push(await enviarFoto(foto));
+      }
+      const resultado = await bancoOperacional().rpc('delta_cortex_editar_registro', {
+        p_visita_id: visitaId,
+        p_registro_id: original.id,
+        p_versao: original.versao,
+        p_descricao_anterior: original.descricao,
+        p_alteracoes: {
+          tipo: atualizado.tipo, meio_ambiental: atualizado.meio, descricao: atualizado.descricao,
+          gravidade: atualizado.gravidade ?? null, latitude: atualizado.latitude, longitude: atualizado.longitude,
+          precisao_metros: atualizado.precisaoMetros ?? null, utm_zona: atualizado.utmZona,
+          utm_hemisferio: atualizado.utmHemisferio, utm_easting: atualizado.utmEasting,
+          utm_northing: atualizado.utmNorthing, referencia_geodesica: atualizado.referenciaGeodesica,
+        },
+        p_fotos_novas: enviadas,
+        p_fotos_removidas: [...fotosOriginais].filter(id => !fotosAtuais.has(id)),
+      });
+      if (resultado.error?.code === 'PDC01') throw new Error('O tipo do registro é usado no histórico e precisa ser mantido.');
+      if (resultado.error?.code === 'PDC02') throw new Error('Uma das fotos removidas integra um relatório emitido. Mantenha essa foto e salve novamente.');
+      const versao = confirmarLinha(resultado, 'editar o registro de campo');
+      if (typeof versao !== 'number') throw new Error('O Supabase não confirmou a versão atualizada do registro.');
+      return versao;
+    } catch (erro) {
+      await Promise.allSettled(enviadas.map(f => removerEnvioPendente(BUCKET_VISITAS, f.storage_path)));
+      throw erro;
+    }
+  },
   async salvar(r: RegistroCampo) {
     const enviadas: Awaited<ReturnType<typeof enviarFoto>>[] = [];
     try {

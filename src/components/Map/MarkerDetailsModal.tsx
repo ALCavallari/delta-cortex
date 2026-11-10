@@ -12,6 +12,7 @@ import {
   FileText,
   Camera,
   Trash2,
+  Pencil,
 } from 'lucide-react';
 import { RegistroCampo } from '@/types';
 
@@ -22,6 +23,7 @@ interface MarkerDetailsModalProps {
   visitaAtualId?: string;
   readOnly?: boolean;
   onResolver?: (id: string) => void;
+  onEdit?: (registro: RegistroCampo) => void;
   onDelete?: (id: string) => Promise<void> | void;
 }
 
@@ -30,6 +32,7 @@ export function MarkerDetailsModal({
   isOpen,
   onClose,
   onDelete,
+  onEdit,
   visitaAtualId,
   readOnly = false,
   onResolver,
@@ -208,6 +211,12 @@ export function MarkerDetailsModal({
 
           {/* Rodapé com Ações */}
           <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50/80 shrink-0 flex flex-wrap items-center justify-between gap-3">
+            {!readOnly && onEdit && !registro.deletedAt &&
+              <button type="button" onClick={() => onEdit(registro)}
+                className="inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200/60">
+                <Pencil className="h-4 w-4" />
+                Editar Registro
+              </button>}
             {!readOnly && isOcorrencia && onResolver && registro.situacao !== 'resolvido' && !registro.deletedAt &&
               <button type="button" className="rounded-xl bg-[#A3CA33] px-3 py-2 text-sm font-semibold text-[#333436]"
                 onClick={() => { if (window.confirm('Marcar este registro como resolvido?')) onResolver(registro.id); }}>

@@ -93,6 +93,7 @@ function VisitaOperacionalContent() {
 
   // Modais operacionais
   const [posicaoRegistro, setPosicaoRegistro] = useState<{ latitude: number; longitude: number; precisao: number | null } | null>(null);
+  const [registroEditando, setRegistroEditando] = useState<RegistroCampo | null>(null);
   const [marcadorSelecionado, setMarcadorSelecionado] = useState<RegistroCampo | null>(null);
   const [modalExcluidosAberto, setModalExcluidosAberto] = useState(false);
   const [modoHistorico, setModoHistorico] = useState<'excluidos' | 'historico' | 'observacoes_excluidas'>('excluidos');
@@ -151,6 +152,11 @@ function VisitaOperacionalContent() {
   };
 
   const handleRegistroSalvo = (novo: RegistroCampo) => {
+    if (registroEditando) {
+      setRegistros(prev => prev.map(registro => registro.id === novo.id ? novo : registro));
+      showToast('Registro atualizado com sucesso.');
+      return;
+    }
     setRegistros((prev) => [...prev, novo]);
     showToast(`${novo.tipo} registrada com sucesso na posição atual!`);
   };
@@ -494,12 +500,14 @@ function VisitaOperacionalContent() {
       </main>
 
       {/* Modal / Bottom Sheet: Novo Registro de Campo */}
-      {posicaoRegistro && <FieldRecordModal
-        onClose={() => setPosicaoRegistro(null)}
+      {(posicaoRegistro || registroEditando) && <FieldRecordModal
+        key={registroEditando?.id ?? 'novo'}
+        onClose={() => { setPosicaoRegistro(null); setRegistroEditando(null); }}
         visita={visita}
-        capturedLat={posicaoRegistro.latitude}
-        capturedLng={posicaoRegistro.longitude}
-        capturedAccuracy={posicaoRegistro.precisao}
+        registro={registroEditando ?? undefined}
+        capturedLat={registroEditando?.latitude ?? posicaoRegistro!.latitude}
+        capturedLng={registroEditando?.longitude ?? posicaoRegistro!.longitude}
+        capturedAccuracy={registroEditando ? registroEditando.precisaoMetros ?? null : posicaoRegistro!.precisao}
         onRecordSaved={handleRegistroSalvo}
       />}
 
@@ -508,6 +516,13 @@ function VisitaOperacionalContent() {
         isOpen={!!marcadorSelecionado}
         onClose={() => setMarcadorSelecionado(null)}
         registro={marcadorSelecionado}
+        onEdit={visita.status === 'em_andamento' && (podeEmitirRelatorio || perfil === 'tecnico')
+          ? registro => {
+            setMarcadorSelecionado(null);
+            setModalExcluidosAberto(false);
+            setRegistroEditando(registro);
+          }
+          : undefined}
         onDelete={marcadorSelecionado?.deletedAt ? undefined : handleExcluirRegistro}
         visitaAtualId={visita.id}
         onResolver={id => void mudarSituacao(id, 'resolvido')}

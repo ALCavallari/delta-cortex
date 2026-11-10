@@ -811,12 +811,11 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
         fechar={() => setVisitaRelatorios(null)} onAlterado={() => void carregarDados()} />}
 
       {/* Modal Novo Trabalho */}
-      <NewVisitModal
-        isOpen={modalNovaVisitaAberto}
+      {modalNovaVisitaAberto && <NewVisitModal
         tecnicoDesignado={tecnicoDesignado}
         onClose={() => setModalNovaVisitaAberto(false)}
         onVisitCreated={() => carregarDados()}
-      />
+      />}
 
       {/* MODAL DE CONFIRMAÇÃO: EXCLUIR VISITA */}
       {visitaParaExcluir && (
