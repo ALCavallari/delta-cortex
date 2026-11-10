@@ -39,6 +39,8 @@ As funções privilegiadas ficam no schema privado, usam `search_path` vazio e v
 
 Aplique a [migration de gerenciamento de relatórios](migrations/20261110012723_gerenciamento_relatorios.sql) depois da administração de usuários e antes de publicar a versão com edição e exclusão. Administradores podem corrigir atividades e emitir um PDF revisado. A versão anterior é arquivada na mesma transação. A exclusão é lógica e os objetos antigos permanecem no Storage privado. A lista por projeto mantém os perfis que já tinham acesso aos relatórios.
 
+Aplique também a [migration de emissão durante a visita](migrations/20261110015614_relatorio_visita_em_andamento.sql) antes de publicar o botão **Gerar Relatório**. Finalizar a visita apenas conclui o trabalho. Ao substituir um relatório a partir da visita, o novo PDF considera os registros disponíveis naquele momento e o anterior é arquivado.
+
 ## Reversão
 
 Para suspender imediatamente Cliente e Técnico, execute no SQL Editor:

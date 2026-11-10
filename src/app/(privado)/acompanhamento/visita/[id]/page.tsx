@@ -30,7 +30,9 @@ import {
   ProjetoRepository,
   ArquivoGeograficoRepository,
   RegistroCampoRepository,
+  RelatorioRepository,
 } from '@/services/repositoriosOperacionais';
+import type { RelatorioListado } from '@/services/campoSupabase';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { FieldRecordModal } from '@/components/FieldRecordModal';
 import { CamposFiltrosMapa, MapFilterToolbar } from '@/components/Map/MapFilterToolbar';
@@ -56,7 +58,8 @@ const LeafletMap = dynamic(() => import('@/components/Map/LeafletMap'), {
 
 function VisitaOperacionalContent() {
   const router = useRouter();
-  const tecnicoDesignado = usePerfil() === 'tecnico';
+  const perfil = usePerfil();
+  const podeEmitirRelatorio = perfil === 'admin' || perfil === 'editor';
   const voltar = '/acompanhamento';
   const params = useParams();
   const visitaId = (params?.id as string) || '';
@@ -84,7 +87,8 @@ function VisitaOperacionalContent() {
     refreshLocation,
   } = useGeolocation({ enableHighAccuracy: true });
 
-  const [relatorioModal, setRelatorioModal] = useState<'pergunta' | 'atividades' | null>(null);
+  const [relatorioModal, setRelatorioModal] = useState<{ original?: RelatorioListado } | null>(null);
+  const [consultandoRelatorio, setConsultandoRelatorio] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
 
   // Modais operacionais
@@ -214,7 +218,7 @@ function VisitaOperacionalContent() {
   };
 
   const handleConcluirVisita = async () => {
-    if (!visita || visita.status === 'concluida' || finalizando) return;
+    if (!visita || visita.status !== 'em_andamento' || finalizando || consultandoRelatorio) return;
     const confirm = window.confirm(
       'Deseja marcar esta visita sistemática como Concluída? Você poderá reabri-la posteriormente no painel.'
     );
@@ -224,11 +228,29 @@ function VisitaOperacionalContent() {
       setFinalizando(true);
       await VisitaRepository.atualizarStatus(visita.id, 'concluida', visita.atualizadoEm);
       setVisita((prev) => (prev ? { ...prev, status: 'concluida' } : null));
-      if (tecnicoDesignado) router.push(voltar); else setRelatorioModal('pergunta');
+      router.push(voltar);
     } catch (err) {
       console.error('Erro ao atualizar status:', err);
       showToast('Não foi possível finalizar a visita. Tente novamente.');
     } finally { setFinalizando(false); }
+  };
+
+  const abrirRelatorio = async () => {
+    if (!visita || !podeEmitirRelatorio || consultandoRelatorio || finalizando) return;
+    setConsultandoRelatorio(true);
+    try {
+      const [original] = await RelatorioRepository.listarMetadados({ visitaId: visita.id });
+      if (original && perfil !== 'admin') {
+        showToast('Já há um relatório vinculado à visita. Somente administradores podem substituí-lo.');
+        return;
+      }
+      if (original && !window.confirm('Já há um relatório vinculado à esta visita. Deseja sobrescrever o arquivo?')) return;
+      setRelatorioModal({ original });
+    } catch (erro) {
+      showToast(erro instanceof Error ? erro.message : 'Não foi possível consultar o relatório da visita.');
+    } finally {
+      setConsultandoRelatorio(false);
+    }
   };
 
   const formatarDataBR = (dataStr: string) => {
@@ -305,18 +327,17 @@ function VisitaOperacionalContent() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-900 overflow-hidden relative select-none">
-      {relatorioModal === 'pergunta' && <div className="fixed inset-0 z-[100] bg-slate-900/60 flex items-center justify-center p-4">
-        <section role="dialog" aria-modal="true" aria-labelledby="relatorio-titulo" className="w-full max-w-md rounded-2xl bg-white shadow-2xl p-6 text-[#333436]">
-          <h2 id="relatorio-titulo" className="text-lg font-bold mb-3">Relatório de Visita</h2>
-          <p className="text-sm mb-6">Deseja emitir o relatório de visita?</p>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => router.push(voltar)} className="px-6 py-3 border border-slate-300 rounded-xl font-semibold">Não</button>
-            <button type="button" onClick={() => setRelatorioModal('atividades')} className="px-6 py-3 bg-[#00AFF0] text-white rounded-xl font-semibold">Sim</button>
-          </div>
-        </section>
-      </div>}
-      {relatorioModal === 'atividades' && <ReportActivitiesModal visita={visita}
-        onClose={() => router.push(voltar)} onDone={() => router.push(voltar)} />}
+      {relatorioModal && <ReportActivitiesModal visita={visita} original={relatorioModal.original} atualizarRegistros
+        onClose={() => setRelatorioModal(null)} onDone={async () => {
+          try {
+            const atual = await VisitaRepository.obterPorId(visita.id);
+            if (atual) setVisita(atual);
+          } catch {
+            showToast('Relatório salvo. Recarregue a visita para atualizar seus dados.');
+          } finally {
+            setRelatorioModal(null);
+          }
+        }} />}
       {/* Toast Feedback */}
       {toastMsg && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#333436] text-white shadow-2xl border border-slate-700 text-xs sm:text-sm font-semibold animate-slide-up">
@@ -326,7 +347,7 @@ function VisitaOperacionalContent() {
       )}
 
       {/* 11.1 Cabeçalho Operacional Compacto */}
-      <header className="h-16 sm:h-20 bg-[#333436] border-b border-slate-800 text-white px-4 sm:px-6 flex items-center justify-between shrink-0 z-30 shadow-md">
+      <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-[#333436] px-4 py-2 text-white shadow-md sm:min-h-20 sm:flex-nowrap sm:px-6 z-30">
         {/* Esquerda: Retorno e Logo */}
         <div className="flex items-center gap-3 sm:gap-4">
           <Link
@@ -360,7 +381,7 @@ function VisitaOperacionalContent() {
         </div>
 
         {/* Centro / Direita: Status do GPS e Ações */}
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-4">
           {/* Indicador de Sinal GPS */}
           <div
             onClick={() => refreshLocation()}
@@ -402,10 +423,16 @@ function VisitaOperacionalContent() {
           </button>
 
           {/* Botão de Finalizar Visita */}
+          {podeEmitirRelatorio && visita.status !== 'cancelada' && <button type="button" onClick={() => void abrirRelatorio()}
+            disabled={consultandoRelatorio || finalizando}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-700 bg-sky-900/60 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-800 disabled:opacity-50">
+            <FileCheck className="h-3.5 w-3.5" aria-hidden />
+            {consultandoRelatorio ? 'Consultando…' : 'Gerar Relatório'}
+          </button>}
           <button
             type="button"
             onClick={handleConcluirVisita}
-            disabled={finalizando || visita.status === 'concluida'}
+            disabled={finalizando || consultandoRelatorio || visita.status !== 'em_andamento'}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
               visita.status === 'concluida'
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 cursor-default'

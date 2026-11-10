@@ -14,6 +14,6 @@ export function rotaPermitida(perfil: Perfil, rota: string) {
   if (rota === '/administracao' || rota.startsWith('/administracao/')) return perfil === 'admin';
   if (perfil === 'cliente') return rota === '/acompanhamento' || rota === '/portal-cliente';
   if (perfil === 'tecnico') return rota === '/acompanhamento' || rota === '/meus-trabalhos'
-    || /^\/acompanhamento\/visita\/[^/]+$/.test(rota) || rota === '/api/google-maps';
+    || /^\/acompanhamento\/visita\/[^/]+$/.test(rota) || rota === '/api/google-maps' || rota === '/api/revisao-registro';
   return rota !== '/portal-cliente' && rota !== '/meus-trabalhos';
 }

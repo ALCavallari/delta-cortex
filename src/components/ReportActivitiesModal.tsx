@@ -8,8 +8,8 @@ import { ATIVIDADES } from '@/services/rasActivities';
 import { baixarRelatorio } from '@/services/reportDownload';
 import type { RelatorioListado } from '@/services/campoSupabase';
 
-export function ReportActivitiesModal({ visita, original, onClose, onDone }: {
-  visita: Visita; original?: RelatorioListado; onClose: () => void; onDone: () => void;
+export function ReportActivitiesModal({ visita, original, atualizarRegistros = false, onClose, onDone }: {
+  visita: Visita; original?: RelatorioListado; atualizarRegistros?: boolean; onClose: () => void; onDone: () => void;
 }) {
   const [selecionadas, setSelecionadas] = useState(original?.atividades ?? visita.atividadesRealizadas ?? []);
   const [ocupado, setOcupado] = useState(false);
@@ -23,13 +23,15 @@ export function ReportActivitiesModal({ visita, original, onClose, onDone }: {
     try {
       const atividades = ATIVIDADES.filter(a => selecionadas.includes(a));
       const atual = await VisitaRepository.obterPorId(visita.id);
-      if (!atual || atual.status !== 'concluida') throw new Error('Finalize a visita antes de emitir o relatório.');
+      if (!atual || (atual.status !== 'em_andamento' && atual.status !== 'concluida')) {
+        throw new Error('A visita está indisponível para emitir o relatório.');
+      }
       const [registros, { gerarRelatorio }] = await Promise.all([
         RegistroCampoRepository.listarNoContexto(atual),
         import('@/services/rasPdf'),
       ]);
       let incluidos = registrosDoRelatorio(registros, atual);
-      if (original) {
+      if (original && !atualizarRegistros) {
         const porId = new Map(registros.map(r => [r.id, r]));
         const fotosOriginais = new Set(original.fotografiaIds);
         incluidos = original.registroIds.map(id => {
@@ -44,7 +46,7 @@ export function ReportActivitiesModal({ visita, original, onClose, onDone }: {
       }
       const relatorio = await gerarRelatorio(atual, atividades, incluidos);
       if (!relatorio.pdf.size) throw new Error('O PDF gerado está vazio.');
-      await RelatorioRepository.adicionar(relatorio, original?.id);
+      await RelatorioRepository.adicionar(relatorio, original?.id, atualizarRegistros);
       setSalvo(true);
       baixarRelatorio(relatorio);
     } catch (error) {
@@ -72,7 +74,7 @@ export function ReportActivitiesModal({ visita, original, onClose, onDone }: {
       </>}
       {erro && <p role="alert" className="mt-3 text-sm text-red-700">{erro}</p>}
       <div className="mt-4 flex flex-wrap justify-end gap-2">
-        {salvo ? <button type="button" onClick={onDone} className="rounded-xl bg-[#00AFF0] px-4 py-2 font-semibold text-white">Voltar à lista</button> : <>
+        {salvo ? <button type="button" onClick={onDone} className="rounded-xl bg-[#00AFF0] px-4 py-2 font-semibold text-white">Concluir</button> : <>
           <button type="button" disabled={ocupado} onClick={onClose} className="rounded-xl border border-slate-300 px-4 py-2 font-semibold">Cancelar</button>
           <button type="button" disabled={ocupado || !selecionadas.length} onClick={gerar} className="rounded-xl bg-[#00AFF0] px-4 py-2 font-semibold text-white disabled:opacity-50">
             {ocupado ? 'Gerando relatório…' : original ? 'Salvar Revisão' : 'Gerar Relatório'}

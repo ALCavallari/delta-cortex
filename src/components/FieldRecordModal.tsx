@@ -69,6 +69,8 @@ export function FieldRecordModal({
   const [erros, setErros] = useState<Record<string, string>>({});
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [revisando, setRevisando] = useState(false);
+  const [revisao, setRevisao] = useState<{ sugestao: string } | { aviso: string } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -102,6 +104,7 @@ export function FieldRecordModal({
       setErros({});
       setErroGeral(null);
       setSalvando(false);
+      setRevisao(null);
     }
   }, [isOpen, capturedLat, capturedLng, capturedAccuracy]);
 
@@ -205,12 +208,34 @@ export function FieldRecordModal({
 
   const handleRegistrar = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (salvando || revisando || revisao || !validar()) return;
     setErroGeral(null);
+    setRevisando(true);
+    const original = descricao.trim();
+    try {
+      const resposta = await fetch('/api/revisao-registro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitaId: visita.id, descricao: original }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      const dados = await resposta.json() as { texto?: string; erro?: string };
+      if (!resposta.ok || typeof dados.texto !== 'string') {
+        setRevisao({ aviso: dados.erro ?? 'Não foi possível revisar a descrição.' });
+        return;
+      }
+      if (dados.texto !== original) setRevisao({ sugestao: dados.texto });
+      else await salvarRegistro(original);
+    } catch {
+      setRevisao({ aviso: 'Não foi possível revisar a descrição.' });
+    } finally {
+      setRevisando(false);
+    }
+  };
 
-    if (salvando) return; // Evita duplo clique acidental
-
-    if (!validar()) return;
-
+  async function salvarRegistro(texto: string) {
+    if (salvando) return;
+    setErroGeral(null);
     try {
       setSalvando(true);
 
@@ -233,7 +258,7 @@ export function FieldRecordModal({
         visitaId: visita.id,
         tipo,
         meio,
-        descricao: descricao.trim(),
+        descricao: texto.trim(),
         gravidade: tipo === 'Ocorrencia' && gravidade ? (gravidade as GravidadeOcorrencia) : undefined,
         latitude: latEstavel!,
         longitude: lngEstavel!,
@@ -256,7 +281,7 @@ export function FieldRecordModal({
       setErroGeral(err instanceof Error ? err.message : 'Falha ao salvar o registro de campo.');
       setSalvando(false);
     }
-  };
+  }
 
   return (
     <>
@@ -290,6 +315,7 @@ export function FieldRecordModal({
             <button
               type="button"
               onClick={onClose}
+              disabled={revisando || salvando}
               className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors"
             >
               <X className="w-5 h-5" />
@@ -298,6 +324,7 @@ export function FieldRecordModal({
 
           {/* Formulário com rolagem própria */}
           <form onSubmit={handleRegistrar} className="p-6 space-y-5 overflow-y-auto flex-1">
+            <fieldset disabled={revisando || salvando} className="min-w-0 space-y-5">
             {erroGeral && (
               <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2.5 text-sm text-red-700">
                 <AlertCircle className="w-5 h-5 shrink-0" />
@@ -457,6 +484,7 @@ export function FieldRecordModal({
                 value={descricao}
                 onChange={(e) => {
                   setDescricao(e.target.value);
+                  setRevisao(null);
                   if (erros.descricao) setErros((prev) => ({ ...prev, descricao: '' }));
                 }}
                 placeholder="Descreva minuciosamente a condição identificada em campo (ex: presença de espécie exótica invasora na margem direita do reservatório, evidência de erosão no talude, etc.)..."
@@ -469,6 +497,21 @@ export function FieldRecordModal({
               {erros.descricao && (
                 <p className="mt-1 text-xs text-red-500 font-medium">{erros.descricao}</p>
               )}
+              <p className="mt-1 text-xs text-slate-500">Ao registrar, a descrição é enviada à OpenAI para revisão de português.</p>
+              {revisao && <div className="mt-2 space-y-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm">
+                {'sugestao' in revisao ? <>
+                  <p className="font-semibold">Sugestão de revisão</p>
+                  <p className="whitespace-pre-wrap break-words">{revisao.sugestao}</p>
+                  <button type="button" className="rounded-lg bg-sky-700 px-3 py-2 font-semibold text-white" onClick={() => {
+                    if (!validar()) return;
+                    void salvarRegistro(revisao.sugestao);
+                  }}>Aceitar e registrar</button>
+                </> : <p role="status">{revisao.aviso}</p>}
+                <button type="button" className="ml-2 rounded-lg border border-slate-300 bg-white px-3 py-2 font-semibold"
+                  onClick={() => { if (validar()) void salvarRegistro(descricao); }}>
+                  {'sugestao' in revisao ? 'Manter original e registrar' : 'Registrar sem revisão'}
+                </button>
+              </div>}
             </div>
 
             {/* 17 & 18. Fotografias com Carimbo Automático Canvas */}
@@ -552,20 +595,21 @@ export function FieldRecordModal({
               <button
                 type="button"
                 onClick={onClose}
-                disabled={salvando}
+                disabled={salvando || revisando}
                 className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-all"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
-                disabled={salvando}
+                disabled={salvando || revisando || !!revisao}
                 className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 disabled:opacity-70"
               >
                 <Save className="w-4 h-4" />
-                <span>{salvando ? 'Gravando Registro...' : 'Registrar'}</span>
+                <span>{salvando ? 'Gravando Registro...' : revisando ? 'Revisando descrição…' : 'Registrar'}</span>
               </button>
             </div>
+            </fieldset>
           </form>
         </div>
       </div>

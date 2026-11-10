@@ -260,7 +260,7 @@ async function baixarLinhaRelatorio(r: LinhaRelatorio): Promise<RelatorioVisita>
 
 export const RelatorioSupabaseRepository = {
   salvarAtividades: (id: string, atividades: string[]) => atualizarVisita(id, { atividades_realizadas: atividades }, 'salvar as atividades'),
-  async adicionar(r: RelatorioVisita, originalId?: string) {
+  async adicionar(r: RelatorioVisita, originalId?: string, verificarRelatorioAtual = false) {
     const path = `${r.visitaId}/relatorios/${r.id}/${crypto.randomUUID()}.pdf`;
     await enviarObjeto(BUCKET_VISITAS, path, r.pdf, 'application/pdf');
     try {
@@ -269,7 +269,9 @@ export const RelatorioSupabaseRepository = {
         atividades: r.atividades, registro_ids: r.registroIds, fotografia_ids: r.fotografiaIds,
       };
       const banco = bancoOperacional();
-      const resultado = originalId
+      const resultado = verificarRelatorioAtual
+        ? await banco.rpc('delta_cortex_emitir_relatorio_visita', { p_original: originalId ?? null, p_relatorio })
+        : originalId
         ? await banco.rpc('delta_cortex_substituir_relatorio', { p_original: originalId, p_relatorio })
         : await banco.rpc('delta_cortex_adicionar_relatorio', { p_relatorio });
       confirmarLinha(resultado, 'publicar o relatório');
