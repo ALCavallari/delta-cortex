@@ -36,7 +36,6 @@ import {
   Search,
   Filter,
   ArrowUpDown,
-  History,
   X,
   Link2,
 } from 'lucide-react';
@@ -57,7 +56,6 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
   const [comRelatorio, setComRelatorio] = useState<Set<string>>(new Set());
   const [aba, setAba] = useState<'trabalhos' | 'mapa'>(clienteExterno ? 'mapa' : 'trabalhos');
   const [visitas, setVisitas] = useState<Visita[]>([]);
-  const [visitasExcluidas, setVisitasExcluidas] = useState<Visita[]>([]);
   const [clientes, setClientes] = useState<Pick<Cliente, 'id' | 'nomeRazaoSocial'>[]>([]);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [profissionais, setProfissionais] = useState<Pick<Profissional, 'id' | 'nome'>[]>([]);
@@ -68,7 +66,6 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
   // Modais
   const [modalNovaVisitaAberto, setModalNovaVisitaAberto] = useState(false);
   const [visitaParaExcluir, setVisitaParaExcluir] = useState<Visita | null>(null);
-  const [modalExcluidasAberto, setModalExcluidasAberto] = useState(false);
   const [visitaParaVincular, setVisitaParaVincular] = useState<Visita | null>(null);
   const [erroVinculo, setErroVinculo] = useState('');
   const [projetoVinculoSelecionado, setProjetoVinculoSelecionado] = useState('');
@@ -97,14 +94,12 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
   const carregarDados = useCallback(() =>
     Promise.all([
       clienteExterno ? [] : VisitaRepository.listar(false),
-      restrito ? [] : VisitaRepository.listarExcluidas(),
       ProjetoRepository.listar(),
       restrito ? contextoRestrito() : Promise.all([ClienteRepository.listar(), ProfissionalRepository.listar()])
         .then(([clientes, profissionais]) => ({ clientes, profissionais })),
-    ]).then(async ([listaVisitas, listaExcluidas, listaProjetos, contexto]) => {
+    ]).then(async ([listaVisitas, listaProjetos, contexto]) => {
       setErroCarga('');
       setVisitas(listaVisitas);
-      setVisitasExcluidas(listaExcluidas);
       setClientes(contexto.clientes);
       setProjetos(listaProjetos);
       setProfissionais(contexto.profissionais);
@@ -134,18 +129,6 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
     } catch (err) {
       console.error('Erro ao excluir visita:', err);
       showToast('Falha ao excluir visita.');
-    }
-  };
-
-  // Restauração de visita excluída
-  const handleRestaurarVisita = async (id: string) => {
-    try {
-      await VisitaRepository.restaurar(id);
-      showToast('Visita restaurada com sucesso!');
-      await carregarDados();
-    } catch (err) {
-      console.error('Erro ao restaurar visita:', err);
-      showToast('Falha ao restaurar visita.');
     }
   };
 
@@ -330,16 +313,6 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
         subtitle={descricoesModulos.trabalhoCampo}
         backHref={restrito ? undefined : '/dashboard'}
         backLabel="Menu Principal"
-        action={aba === 'trabalhos' ? (
-          <button
-            onClick={() => setModalNovaVisitaAberto(true)}
-            disabled={semProjetoDesignado}
-            className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-xs sm:text-sm disabled:opacity-50"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Novo Trabalho</span>
-          </button>
-        ) : undefined}
       />
 
       {/* Toast Feedback */}
@@ -383,22 +356,11 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
           </div>
 
           <div className="flex items-center gap-3">
-            {visitasExcluidas.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setModalExcluidasAberto(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-xs"
-                title="Visualizar visitas excluídas e restaurar"
-              >
-                <History className="w-4 h-4 text-slate-400" />
-                <span>Visitas Excluídas ({visitasExcluidas.length})</span>
-              </button>
-            )}
-
             <button
+              type="button"
               onClick={() => setModalNovaVisitaAberto(true)}
               disabled={semProjetoDesignado}
-              className="sm:hidden inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-white bg-[#00AFF0] text-xs shadow-md disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-xs sm:text-sm disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
               <span>Novo Trabalho</span>
@@ -847,92 +809,6 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
                 className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-sm font-semibold text-white transition-all shadow-md shadow-red-500/20"
               >
                 Excluir Visita
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: VISUALIZAR E RESTAURAR VISITAS EXCLUÍDAS */}
-      {modalExcluidasAberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/90 shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
-                  <History className="w-5 h-5 text-slate-600" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-[#333436]">
-                    Visitas Excluídas
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Restaure visitas e seus registros preservados no Supabase
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalExcluidasAberto(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto space-y-3 flex-1 text-sm">
-              {visitasExcluidas.length === 0 ? (
-                <div className="py-8 text-center text-slate-500">
-                  <p className="font-semibold text-slate-700">Nenhuma visita excluída</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Todas as visitas cadastradas estão ativas na listagem principal.
-                  </p>
-                </div>
-              ) : (
-                visitasExcluidas.map((v) => (
-                  <div
-                    key={v.id}
-                    className="p-4 rounded-xl border border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-slate-700 bg-slate-200/70 px-2 py-0.5 rounded">
-                          {v.identificacao}
-                        </span>
-                        <span className="text-xs font-semibold text-slate-500">
-                          {v.motivo}
-                        </span>
-                      </div>
-                      <p className="text-sm font-bold text-[#333436]">{v.clienteNome}</p>
-                      {v.identificacaoProjeto && (
-                        <p className="text-xs text-slate-500">Projeto: {v.identificacaoProjeto}</p>
-                      )}
-                      <p className="text-[11px] text-slate-400">
-                        Data da visita: {formatarDataBR(v.data)} • Excluída em:{' '}
-                        {v.deletedAt ? new Date(v.deletedAt).toLocaleString('pt-BR') : '—'}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleRestaurarVisita(v.id)}
-                      className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 hover:border-emerald-400 text-xs font-semibold shadow-xs transition-colors"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Restaurar Visita</span>
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50/80 shrink-0 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setModalExcluidasAberto(false)}
-                className="px-5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200/60 rounded-xl transition-colors"
-              >
-                Fechar
               </button>
             </div>
           </div>
