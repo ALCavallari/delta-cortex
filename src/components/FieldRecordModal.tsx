@@ -452,6 +452,8 @@ export function FieldRecordModal({
               </label>
               <textarea
                 rows={4}
+                lang="pt-BR"
+                spellCheck
                 value={descricao}
                 onChange={(e) => {
                   setDescricao(e.target.value);
