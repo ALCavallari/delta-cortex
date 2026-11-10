@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { baixarRelatorio } from '@/services/reportDownload';
 import { ShareReportModal } from '@/components/ShareReportModal';
+import { RelatoriosEmitidos } from '@/components/RelatoriosEmitidos';
 import { descricoesModulos } from '@/services/moduleDescriptions';
 import { ProjectOccurrenceMap } from '@/components/Map/ProjectOccurrenceMap';
 import { Header } from '@/components/Header';
@@ -29,6 +30,7 @@ import {
   MapPin,
   Trash2,
   FileDown,
+  FilePenLine,
   Share2,
   RotateCcw,
   Search,
@@ -50,6 +52,7 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
   const tecnicoDesignado = perfil === 'tecnico';
   const restrito = clienteExterno || tecnicoDesignado;
   const [visitaCompartilhada, setVisitaCompartilhada] = useState<Visita | null>(null);
+  const [visitaRelatorios, setVisitaRelatorios] = useState<Visita | null>(null);
   const [baixando, setBaixando] = useState<string | null>(null);
   const [comRelatorio, setComRelatorio] = useState<Set<string>>(new Set());
   const [aba, setAba] = useState<'trabalhos' | 'mapa'>(clienteExterno ? 'mapa' : 'trabalhos');
@@ -351,7 +354,7 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
         <nav aria-label="Áreas de Trabalho de Campo" className="mb-5 flex border-b border-slate-200">
           {([
             ['trabalhos', 'Trabalhos Cadastrados'],
-            ['mapa', 'Mapa de Ocorrências'],
+            ['mapa', 'Mapa de Ocorrências/Relatórios'],
           ] as const).filter(([id]) => !clienteExterno || id === 'mapa').map(([id, titulo]) => (
             <button key={id} type="button" aria-pressed={aba === id} onClick={() => setAba(id)}
               className={`min-h-11 flex-1 border-b-2 px-2 py-2 text-sm font-semibold sm:flex-none sm:px-5 ${aba === id
@@ -362,9 +365,10 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
         </nav>
         {aba === 'mapa' ? (
           <section aria-labelledby="titulo-mapa-ocorrencias" className="space-y-4">
-            <h1 id="titulo-mapa-ocorrencias" className="text-2xl font-bold text-[#333436]">Mapa de Ocorrências</h1>
+            <h1 id="titulo-mapa-ocorrencias" className="text-2xl font-bold text-[#333436]">Mapa de Ocorrências/Relatórios</h1>
             {erroCarga ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{erroCarga}</p> :
-              <ProjectOccurrenceMap projetos={projetos} clientes={clientes} carregando={carregando} portal={clienteExterno} restrito={restrito} />}
+              <ProjectOccurrenceMap projetos={projetos} clientes={clientes} carregando={carregando} portal={clienteExterno}
+                restrito={restrito} exibirRelatorios={!restrito} />}
           </section>
         ) : <>
         {/* Cabeçalho da Seção & Ações de Topo */}
@@ -761,6 +765,10 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
                     </Link>
 
                     {comRelatorio.has(visita.id) && <>
+                      {perfil === 'admin' && <button type="button" title="Gerenciar relatórios"
+                        aria-label={`Editar ou excluir relatórios de ${visita.identificacao}`}
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-sky-700 hover:bg-sky-50"
+                        onClick={() => setVisitaRelatorios(visita)}><FilePenLine className="h-4 w-4" /></button>}
                       <button type="button" title="Baixar relatório PDF"
                       aria-label={`Baixar relatório PDF de ${visita.identificacao}`}
                       className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-sky-700 hover:bg-sky-50 disabled:opacity-50"
@@ -799,6 +807,8 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
       </main>
       {visitaCompartilhada && <ShareReportModal key={visitaCompartilhada.id}
         visitaId={visitaCompartilhada.id} onClose={() => setVisitaCompartilhada(null)} />}
+      {perfil === 'admin' && visitaRelatorios && <RelatoriosEmitidos key={visitaRelatorios.id} visita={visitaRelatorios}
+        fechar={() => setVisitaRelatorios(null)} onAlterado={() => void carregarDados()} />}
 
       {/* Modal Novo Trabalho */}
       <NewVisitModal

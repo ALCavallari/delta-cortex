@@ -35,6 +35,10 @@ As funções privilegiadas ficam no schema privado, usam `search_path` vazio e v
 
    Em **Administração de Usuários**, confirme o perfil e selecione os projetos em **Projetos autorizados**. O painel distingue confirmação da conta e ativação do acesso.
 
+## Relatórios do Trabalho de Campo
+
+Aplique a [migration de gerenciamento de relatórios](migrations/20261110012723_gerenciamento_relatorios.sql) depois da administração de usuários e antes de publicar a versão com edição e exclusão. Administradores podem corrigir atividades e emitir um PDF revisado. A versão anterior é arquivada na mesma transação. A exclusão é lógica e os objetos antigos permanecem no Storage privado. A lista por projeto mantém os perfis que já tinham acesso aos relatórios.
+
 ## Reversão
 
 Para suspender imediatamente Cliente e Técnico, execute no SQL Editor:

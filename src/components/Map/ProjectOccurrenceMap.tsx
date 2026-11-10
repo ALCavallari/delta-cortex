@@ -10,6 +10,7 @@ import { validarCoordenadas } from '@/services/utm';
 import type { Cliente, Projeto, RegistroCampo } from '@/types';
 import { CamposFiltrosMapa, MapFilterToolbar } from './MapFilterToolbar';
 import { MarkerDetailsModal } from './MarkerDetailsModal';
+import { RelatoriosEmitidos } from '@/components/RelatoriosEmitidos';
 import type { ArquivoGeografico } from '@/types/geographic';
 import type { EnquadramentoMapa } from './LeafletMap';
 
@@ -23,8 +24,9 @@ const resolvida = (r: RegistroCampo) => r.situacao === 'resolvido';
 const temCoordenadas = ({ latitude, longitude }: { latitude: number; longitude: number }) =>
   Number.isFinite(latitude) && Number.isFinite(longitude) && validarCoordenadas(latitude, longitude);
 
-export function ProjectOccurrenceMap({ projetos, clientes, carregando, portal = false, restrito = portal }: {
-  projetos: Projeto[]; clientes: Pick<Cliente, 'id' | 'nomeRazaoSocial'>[]; carregando: boolean; portal?: boolean; restrito?: boolean;
+export function ProjectOccurrenceMap({ projetos, clientes, carregando, portal = false, restrito = portal, exibirRelatorios = false }: {
+  projetos: Projeto[]; clientes: Pick<Cliente, 'id' | 'nomeRazaoSocial'>[]; carregando: boolean;
+  portal?: boolean; restrito?: boolean; exibirRelatorios?: boolean;
 }) {
   const [busca, setBusca] = useState('');
   const [projetoId, setProjetoId] = useState('');
@@ -57,7 +59,10 @@ export function ProjectOccurrenceMap({ projetos, clientes, carregando, portal = 
       </label>
       {!filtrados.length && <p className="text-sm text-slate-600">Nenhum projeto encontrado para essa pesquisa.</p>}
     </div>
-    {selecionado ? <OcorrenciasProjeto key={selecionado.id} projeto={selecionado} cliente={nomes.get(selecionado.clienteId)} portal={portal} />
+    {selecionado ? <>
+      <OcorrenciasProjeto key={selecionado.id} projeto={selecionado} cliente={nomes.get(selecionado.clienteId)} portal={portal} />
+      {exibirRelatorios && <RelatoriosEmitidos key={`relatorios-${selecionado.id}`} projetoId={selecionado.id} />}
+    </>
       : <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 text-sm">
         <p id="selecionar-projeto-mapa">Selecione um projeto para consultar as ocorrências e expandir o mapa.</p>
         <button type="button" disabled aria-describedby="selecionar-projeto-mapa"

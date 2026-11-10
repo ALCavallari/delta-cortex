@@ -229,40 +229,73 @@ type LinhaRelatorio = {
   registro_ids: string[]; fotografia_ids: string[]; storage_bucket: string; storage_path: string;
 };
 
+export type RelatorioListado = Omit<RelatorioVisita, 'pdf'> & { identificacaoVisita?: string };
+type LinhaRelatorioComVisita = LinhaRelatorio & { visitas_sistematicas?: { identificacao: string } };
+
+function resumoRelatorio(r: LinhaRelatorioComVisita): RelatorioListado {
+  return {
+    id: r.id, visitaId: r.visita_id, nomeArquivo: r.nome_arquivo, geradoEm: r.gerado_em,
+    atividades: r.atividades, registroIds: r.registro_ids, fotografiaIds: r.fotografia_ids,
+    identificacaoVisita: r.visitas_sistematicas?.identificacao,
+  };
+}
+
+async function listarLinhasRelatorio(filtro: { visitaId: string } | { projetoId: string }) {
+  const banco = bancoOperacional();
+  const linhas = await listarPaginas<LinhaRelatorioComVisita>(id => {
+    let consulta = banco.from(relatorios)
+      .select('id,visita_id,nome_arquivo,gerado_em,atividades,registro_ids,fotografia_ids,storage_bucket,storage_path,visitas_sistematicas!inner(identificacao)')
+      .is('excluido_em', null).is('visitas_sistematicas.excluido_em', null).order('id').limit(500);
+    consulta = 'visitaId' in filtro ? consulta.eq('visita_id', filtro.visitaId)
+      : consulta.eq('visitas_sistematicas.projeto_id', filtro.projetoId);
+    if (id) consulta = consulta.gt('id', id);
+    return consulta.returns<LinhaRelatorioComVisita[]>();
+  }, 'listar relatórios');
+  return linhas.sort((a, b) => Date.parse(b.gerado_em) - Date.parse(a.gerado_em));
+}
+
+async function baixarLinhaRelatorio(r: LinhaRelatorio): Promise<RelatorioVisita> {
+  return { ...resumoRelatorio(r), pdf: await baixarObjeto(r.storage_bucket, r.storage_path) };
+}
+
 export const RelatorioSupabaseRepository = {
   salvarAtividades: (id: string, atividades: string[]) => atualizarVisita(id, { atividades_realizadas: atividades }, 'salvar as atividades'),
-  async adicionar(r: RelatorioVisita) {
+  async adicionar(r: RelatorioVisita, originalId?: string) {
     const path = `${r.visitaId}/relatorios/${r.id}/${crypto.randomUUID()}.pdf`;
     await enviarObjeto(BUCKET_VISITAS, path, r.pdf, 'application/pdf');
     try {
-      confirmarLinha(await bancoOperacional().rpc('delta_cortex_adicionar_relatorio', {
-        p_relatorio: {
-          id: r.id, visita_id: r.visitaId, nome_arquivo: r.nomeArquivo, storage_path: path, gerado_em: r.geradoEm,
-          atividades: r.atividades, registro_ids: r.registroIds, fotografia_ids: r.fotografiaIds,
-        },
-      }), 'publicar o relatório');
+      const p_relatorio = {
+        id: r.id, visita_id: r.visitaId, nome_arquivo: r.nomeArquivo, storage_path: path, gerado_em: r.geradoEm,
+        atividades: r.atividades, registro_ids: r.registroIds, fotografia_ids: r.fotografiaIds,
+      };
+      const banco = bancoOperacional();
+      const resultado = originalId
+        ? await banco.rpc('delta_cortex_substituir_relatorio', { p_original: originalId, p_relatorio })
+        : await banco.rpc('delta_cortex_adicionar_relatorio', { p_relatorio });
+      confirmarLinha(resultado, 'publicar o relatório');
     } catch (erro) {
       await removerEnvioPendente(BUCKET_VISITAS, path).catch(() => {});
       throw erro;
     }
   },
   async listarPorVisita(visitaId: string): Promise<RelatorioVisita[]> {
-    const banco = bancoOperacional();
-    const linhas = await listarPaginas<LinhaRelatorio>(id => {
-      let consulta = banco.from(relatorios).select('*').eq('visita_id', visitaId).order('id').limit(500);
-      if (id) consulta = consulta.gt('id', id);
-      return consulta.returns<LinhaRelatorio[]>();
-    }, 'listar relatórios');
-    return Promise.all(linhas.sort((a, b) => b.gerado_em.localeCompare(a.gerado_em)).map(async r => ({
-      id: r.id, visitaId: r.visita_id, nomeArquivo: r.nome_arquivo, geradoEm: r.gerado_em,
-      atividades: r.atividades, registroIds: r.registro_ids, fotografiaIds: r.fotografia_ids,
-      pdf: await baixarObjeto(r.storage_bucket, r.storage_path),
-    })));
+    return Promise.all((await listarLinhasRelatorio({ visitaId })).map(baixarLinhaRelatorio));
+  },
+  async listarMetadados(filtro: { visitaId: string } | { projetoId: string }) {
+    return (await listarLinhasRelatorio(filtro)).map(resumoRelatorio);
+  },
+  async baixarPorId(id: string) {
+    const linha = confirmarLinha(await bancoOperacional().from(relatorios).select('*')
+      .eq('id', id).is('excluido_em', null).maybeSingle<LinhaRelatorio>(), 'consultar o relatório');
+    return baixarLinhaRelatorio(linha);
+  },
+  async excluir(id: string) {
+    confirmarLinha(await bancoOperacional().rpc('delta_cortex_excluir_relatorio', { p_id: id }), 'excluir o relatório');
   },
   async visitasComRelatorio() {
     const banco = bancoOperacional();
     const linhas = await listarPaginas<{ id: string; visita_id: string }>(id => {
-      let consulta = banco.from(relatorios).select('id,visita_id').order('id').limit(500);
+      let consulta = banco.from(relatorios).select('id,visita_id').is('excluido_em', null).order('id').limit(500);
       if (id) consulta = consulta.gt('id', id);
       return consulta.returns<{ id: string; visita_id: string }[]>();
     }, 'identificar visitas com relatório');

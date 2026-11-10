@@ -323,14 +323,14 @@ export function NewVisitModal({ isOpen, onClose, onVisitCreated, tecnicoDesignad
                 <label className="block text-xs font-semibold text-slate-700">
                   Identificação do Projeto / Empreendimento *
                 </label>
-                <Link
+                {!tecnicoDesignado && <Link
                   href="/projetos"
                   onClick={onClose}
                   className="text-[11px] font-semibold text-[#00AFF0] hover:underline inline-flex items-center gap-1"
                 >
                   <FolderKanban className="w-3 h-3" />
                   <span>Gerenciar Projetos</span>
-                </Link>
+                </Link>}
               </div>
 
               {projetos.length === 0 ? (
