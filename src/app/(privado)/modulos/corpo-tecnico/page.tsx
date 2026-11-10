@@ -89,7 +89,7 @@ export default function CorpoTecnicoPage() {
     <main className="mx-auto max-w-7xl space-y-5 px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-bold text-[#333436]">Corpo Técnico</h1><p className="text-sm text-slate-600">{descricoesModulos.corpoTecnico}</p></div>
-        <button type="button" className={botaoPrincipal} onClick={() => abrir({ tipo: 'novo' })}><Plus size={18} /> Novo Técnico</button>
+        <button type="button" className={`${botaoPrincipal} text-white!`} onClick={() => abrir({ tipo: 'novo' })}><Plus size={18} /> Novo Técnico</button>
       </div>
       {aviso && modal?.tipo !== 'excluir' && <p role={aviso.erro ? 'alert' : 'status'} className={`rounded-xl border p-3 text-sm ${aviso.erro ? 'border-red-200 bg-red-50 text-red-800' : 'border-lime-200 bg-lime-50 text-lime-900'}`}>{aviso.texto}</p>}
       <section aria-label="Pesquisa e filtros" className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">

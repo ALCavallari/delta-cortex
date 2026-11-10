@@ -142,15 +142,6 @@ export default function ClientesPage() {
         subtitle={descricoesModulos.clientes}
         backHref="/dashboard"
         backLabel="Menu Principal"
-        action={podeEditar ? (
-          <button
-            onClick={abrirNovo}
-            className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-xs sm:text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Novo Cliente</span>
-          </button>
-        ) : undefined}
       />
 
       {/* Toast de Sucesso */}
@@ -162,7 +153,7 @@ export default function ClientesPage() {
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {/* Título de Seção & Botão Mobile */}
+        {/* Título da seção e ação de cadastro */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#333436] tracking-tight">
@@ -177,13 +168,14 @@ export default function ClientesPage() {
             </p>
           </div>
 
-          {podeEditar && <div className="sm:hidden">
+          {podeEditar && <div className="flex items-center">
             <button
+              type="button"
               onClick={abrirNovo}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] transition-all shadow-md text-sm"
+              className="inline-flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl font-semibold text-white bg-[#00AFF0] hover:bg-[#0098d1] active:scale-[0.99] transition-all shadow-md shadow-blue-400/20 text-xs sm:text-sm"
             >
               <Plus className="w-4 h-4" />
-              <span>+ Novo Cliente</span>
+              <span>Novo Cliente</span>
             </button>
           </div>}
         </div>
