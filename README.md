@@ -207,8 +207,6 @@ O login protege a entrada da aplicação. O painel de legado verifica no servido
 
 ## Clientes no Supabase
 
-Para habilitar a revisão por IA das descrições de campo, configure `OPENAI_API_KEY` somente no ambiente de servidor da Vercel. Ao clicar em **Registrar**, a rota autenticada envia à OpenAI apenas a descrição. O usuário pode aceitar a sugestão ou registrar com o texto original. Se o serviço estiver indisponível, o formulário oferece o registro sem revisão.
-
 O painel de [Administração de Usuários](supabase/administracao-usuarios.md) documenta os perfis, os convites e a ativação controlada de acesso por projeto.
 
 Clientes usa exclusivamente `public.clientes` no Supabase em desenvolvimento e produção. Configure `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` em `.env.local` e na Vercel. A tela indica a fonte e apresenta erros de configuração, conexão ou permissão. Os clientes anteriores permanecem no IndexedDB.
