@@ -6,7 +6,6 @@ import { usePerfil } from '@/components/auth/PerfilContext';
 import { descricoesModulos } from '@/services/moduleDescriptions';
 import { Header } from '@/components/Header';
 import { ModuleCard } from '@/components/ModuleCard';
-import { BackupLegado } from '@/components/BackupLegado';
 import {
   Users,
   GraduationCap,
@@ -100,7 +99,6 @@ export default function DashboardPage() {
           className="mt-6 inline-flex items-center gap-2 rounded-xl border bg-white px-4 py-3 font-semibold">
           <Users size={18} aria-hidden /> Administração de Usuários
         </Link>}
-        <BackupLegado />
       </main>
 
     </div>
