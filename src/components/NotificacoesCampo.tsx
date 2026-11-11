@@ -82,7 +82,8 @@ function EditorNotificacao({ original, fechar, concluir }: {
       .catch(falha => { if (ativo) setErro(mensagemErro(falha)); });
     return () => { ativo = false; };
   }, []);
-  const opcoes = destinos?.find(destino => destino.id === destinatario)?.projetos ?? [];
+  const tecnicoSelecionado = destinos?.find(destino => destino.id === destinatario);
+  const opcoes = tecnicoSelecionado?.projetos ?? [];
   const selecionados = opcoes.filter(projeto => projetos.includes(projeto.id));
   return <Janela titulo={original ? 'Editar notificação' : 'Nova Notificação'} fechar={() => { if (!ocupado) fechar(); }}>
     <form className="space-y-4" onSubmit={async evento => {
@@ -100,7 +101,7 @@ function EditorNotificacao({ original, fechar, concluir }: {
       finally { setOcupado(false); }
     }}>
       {!destinos && !erro && <p role="status" className="text-sm">Carregando técnicos…</p>}
-      {destinos?.length === 0 && <p className="text-sm text-slate-600">Nenhum técnico com conta vinculada e projeto autorizado está disponível.</p>}
+      {destinos?.length === 0 && <p className="text-sm text-slate-600">Nenhum técnico com conta ativa e vinculada está disponível para o seu perfil.</p>}
       <fieldset disabled={ocupado} className="space-y-4">
         <label className="block text-sm font-semibold">Técnico destinatário
           <select required className={campo} value={destinatario} onChange={evento => { setDestinatario(evento.target.value); setProjetos([]); }}>
@@ -108,6 +109,9 @@ function EditorNotificacao({ original, fechar, concluir }: {
             {destinos?.map(destino => <option key={destino.id} value={destino.id}>{destino.nome}</option>)}
           </select>
         </label>
+        {tecnicoSelecionado && opcoes.length === 0 && <p className="text-sm text-slate-600">
+          Este técnico ainda não tem projetos autorizados. Vincule um projeto à conta em Administração de Usuários para poder enviar a notificação.
+        </p>}
         {opcoes.length > 0 && <fieldset className="space-y-2 rounded-xl border border-slate-200 p-3 text-sm">
           <legend className="px-1 font-semibold">Projetos</legend>
           <label className="flex gap-2 font-semibold"><input type="checkbox" checked={selecionados.length === opcoes.length}
