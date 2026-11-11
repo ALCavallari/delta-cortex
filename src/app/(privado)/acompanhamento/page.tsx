@@ -11,7 +11,8 @@ import { Header } from '@/components/Header';
 import { NewVisitModal } from '@/components/NewVisitModal';
 import { PainelNotificacoes, useNotificacoesCampo } from '@/components/NotificacoesCampo';
 import { Visita, Cliente, Projeto, Profissional } from '@/types';
-import { usePerfil } from '@/components/auth/PerfilContext';
+import { usePerfil, useUsuarioId } from '@/components/auth/PerfilContext';
+import { exigirEnvioDosRegistros } from '@/services/filaRegistrosCampo';
 import type { Perfil } from '@/services/perfis';
 import { contextoRestrito } from '@/services/supabaseOperacional';
 import {
@@ -49,6 +50,7 @@ export default function AcompanhamentoDashboardPage() {
 }
 
 function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
+  const usuarioId = useUsuarioId();
   const clienteExterno = perfil === 'cliente';
   const tecnicoDesignado = perfil === 'tecnico';
   const restrito = clienteExterno || tecnicoDesignado;
@@ -127,13 +129,14 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
   const handleConfirmarExclusaoVisita = async () => {
     if (!visitaParaExcluir) return;
     try {
+      await exigirEnvioDosRegistros(usuarioId, visitaParaExcluir.id);
       await VisitaRepository.excluirLogico(visitaParaExcluir.id);
       showToast(`Visita "${visitaParaExcluir.identificacao}" excluída com sucesso.`);
       setVisitaParaExcluir(null);
       await carregarDados();
     } catch (err) {
       console.error('Erro ao excluir visita:', err);
-      showToast('Falha ao excluir visita.');
+      showToast(err instanceof Error ? err.message : 'Falha ao excluir visita.');
     }
   };
 

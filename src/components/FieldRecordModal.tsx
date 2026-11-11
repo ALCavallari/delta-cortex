@@ -24,6 +24,8 @@ import {
 import { converterParaUTM } from '@/services/utm';
 import { aplicarEstampaFoto } from '@/services/photoStamper';
 import { RegistroCampoRepository } from '@/services/repositoriosOperacionais';
+import { useUsuarioId } from '@/components/auth/PerfilContext';
+import { guardarRegistroCampo } from '@/services/filaRegistrosCampo';
 
 interface FieldRecordModalProps {
   onClose: () => void;
@@ -44,6 +46,7 @@ export function FieldRecordModal({
   capturedAccuracy,
   onRecordSaved,
 }: FieldRecordModalProps) {
+  const usuarioId = useUsuarioId();
   // Campos do formulário
   const [tipo, setTipo] = useState<TipoRegistro>(registro?.tipo ?? 'Observacao');
   const [meio, setMeio] = useState<MeioAmbiental>(registro?.meio ?? 'Flora');
@@ -194,7 +197,7 @@ export function FieldRecordModal({
       setSalvando(true);
 
       const agora = new Date().toISOString();
-      const registroId = registro?.id ?? `reg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const registroId = registro?.id ?? `reg-${crypto.randomUUID()}`;
 
       // Atualiza o registroCampoId nas fotos capturadas
       const fotosVinculadas: Fotografia[] = fotos.map((f) => ({
@@ -226,7 +229,11 @@ export function FieldRecordModal({
 
       let versao = 0;
       if (registro) versao = await RegistroCampoRepository.editar(visita.id, registro, novoRegistro);
-      else await RegistroCampoRepository.salvar(novoRegistro);
+      else {
+        if (!usuarioId) throw new Error('Identifique sua conta antes de registrar.');
+        if (visita.status !== 'em_andamento') throw new Error('Esta visita não está em andamento.');
+        await guardarRegistroCampo(usuarioId, novoRegistro);
+      }
       onRecordSaved({ ...novoRegistro, versao });
       onClose();
     } catch (err) {

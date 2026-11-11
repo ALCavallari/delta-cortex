@@ -1,6 +1,7 @@
 'use client';
 
-import { usePerfil } from '@/components/auth/PerfilContext';
+import { usePerfil, useUsuarioId } from '@/components/auth/PerfilContext';
+import { exigirEnvioDosRegistros, observarFilaCampo, registrosPendentes, sincronizarFilaCampo } from '@/services/filaRegistrosCampo';
 import { NotificacoesDaVisita } from '@/components/NotificacoesCampo';
 import React, { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
@@ -59,6 +60,7 @@ const LeafletMap = dynamic(() => import('@/components/Map/LeafletMap'), {
 function VisitaOperacionalContent() {
   const router = useRouter();
   const perfil = usePerfil();
+  const usuarioId = useUsuarioId();
   const podeEmitirRelatorio = perfil === 'admin' || perfil === 'editor';
   const voltar = '/acompanhamento';
   const params = useParams();
@@ -66,6 +68,8 @@ function VisitaOperacionalContent() {
 
   const [visita, setVisita] = useState<Visita | null>(null);
   const [contexto, setRegistros] = useState<RegistroCampo[]>([]);
+  const [locais, setLocais] = useState<RegistroCampo[]>([]);
+  const [falhaEnvio, setFalhaEnvio] = useState(false);
   const [historicoMapa, setHistoricoMapa] = useState(false);
   const [filtrosMapaAbertos, setFiltrosMapaAbertos] = useState(false);
   const [meioMapa, setMeioMapa] = useState('');
@@ -118,7 +122,8 @@ function VisitaOperacionalContent() {
         setVisita(v);
 
         const regs = await RegistroCampoRepository.listarNoContexto(v);
-        setRegistros(regs);
+        const ids = new Set(regs.map(registro => registro.id));
+        setRegistros(atuais => [...regs, ...atuais.filter(registro => registro.visitaId === v.id && !ids.has(registro.id))]);
       } catch (err) {
         console.error('Erro ao carregar dados da visita:', err);
         setErroCarga(err instanceof Error ? err.message : 'Não foi possível carregar a visita.');
@@ -130,6 +135,40 @@ function VisitaOperacionalContent() {
     carregarDados();
   }, [visitaId, router, voltar]);
 
+  useEffect(() => {
+    if (!usuarioId || !visitaId) return;
+    let ativo = true;
+    let revisao = 0;
+    const atualizar = async () => {
+      const consulta = ++revisao;
+      try {
+        const pendentes = await registrosPendentes(usuarioId, visitaId);
+        if (ativo && consulta === revisao) setLocais(pendentes);
+      } catch {
+        if (ativo) setFalhaEnvio(true);
+      }
+    };
+    const parar = observarFilaCampo(mudanca => {
+      if (mudanca.usuarioId !== usuarioId || mudanca.visitaId !== visitaId) return;
+      if (mudanca.tipo === 'falhou') {
+        setFalhaEnvio(true);
+        return;
+      }
+      if (mudanca.tipo === 'enviado') {
+        const inserir = (registro: RegistroCampo) => {
+          if (ativo) setRegistros(atuais => atuais.some(item => item.id === registro.id) ? atuais : [...atuais, { ...registro, versao: registro.versao ?? 0 }]);
+        };
+        if (mudanca.registro) inserir(mudanca.registro);
+        else void RegistroCampoRepository.obterPorId(mudanca.registroId).then(registro => {
+          if (registro) inserir(registro);
+        }).catch(() => {});
+      }
+      void atualizar();
+    });
+    void atualizar();
+    return () => { ativo = false; parar(); };
+  }, [usuarioId, visitaId]);
+
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => {
@@ -138,6 +177,7 @@ function VisitaOperacionalContent() {
   };
 
   const handleAbrirNovoRegistro = () => {
+    if (visita?.status !== 'em_andamento' || finalizando) return;
     if (userLat === null || userLng === null) {
       if (gpsDenied) {
         alert(
@@ -157,8 +197,8 @@ function VisitaOperacionalContent() {
       showToast('Registro atualizado com sucesso.');
       return;
     }
-    setRegistros((prev) => [...prev, novo]);
-    showToast(`${novo.tipo} registrada com sucesso na posição atual!`);
+    setLocais(atuais => atuais.some(item => item.id === novo.id) ? atuais : [...atuais, novo]);
+    showToast('Registro salvo neste dispositivo.');
   };
 
   const handleExcluirRegistro = async (registroId: string) => {
@@ -232,12 +272,13 @@ function VisitaOperacionalContent() {
 
     try {
       setFinalizando(true);
+      await exigirEnvioDosRegistros(usuarioId, visita.id);
       await VisitaRepository.atualizarStatus(visita.id, 'concluida', visita.atualizadoEm);
       setVisita((prev) => (prev ? { ...prev, status: 'concluida' } : null));
       router.push(voltar);
     } catch (err) {
       console.error('Erro ao atualizar status:', err);
-      showToast('Não foi possível finalizar a visita. Tente novamente.');
+      showToast(err instanceof Error ? err.message : 'Não foi possível finalizar a visita. Tente novamente.');
     } finally { setFinalizando(false); }
   };
 
@@ -245,6 +286,7 @@ function VisitaOperacionalContent() {
     if (!visita || !podeEmitirRelatorio || consultandoRelatorio || finalizando) return;
     setConsultandoRelatorio(true);
     try {
+      await exigirEnvioDosRegistros(usuarioId, visita.id);
       const [original] = await RelatorioRepository.listarMetadados({ visitaId: visita.id });
       if (original && perfil !== 'admin') {
         showToast('Já há um relatório vinculado à visita. Somente administradores podem substituí-lo.');
@@ -284,10 +326,14 @@ function VisitaOperacionalContent() {
     );
   }
 
-  const registros = registrosNoMapa(contexto, visita);
+  const pendentesDaVisita = locais.filter(registro => registro.visitaId === visita.id);
+  const idsPendentes = new Set(pendentesDaVisita.map(registro => registro.id));
+  const registrosComLocais = [...contexto.filter(registro => !idsPendentes.has(registro.id)), ...pendentesDaVisita];
+  const marcadorPendente = !!marcadorSelecionado && idsPendentes.has(marcadorSelecionado.id);
+  const registros = registrosNoMapa(registrosComLocais, visita);
   const idsVisiveis = new Set(registros.map(r => r.id));
   const termoMapa = normalizarBusca(descricaoMapa);
-  const marcadores = contexto.filter(r => {
+  const marcadores = registrosComLocais.filter(r => {
     const resolvida = r.situacao === 'resolvido';
     const incluirHistorico = historicoMapa && r.tipo === 'Ocorrencia' && resolvida &&
       !r.deletedAt && r.registradoEm <= visita.criadoEm;
@@ -412,7 +458,7 @@ function VisitaOperacionalContent() {
                   : 'Buscando GPS...'}
               </span>
               <span className="text-slate-500 hidden sm:inline">
-                {registros.length} ponto(s) salvo(s)
+                {registros.length} ponto(s) no mapa
               </span>
             </div>
           </div>
@@ -431,7 +477,7 @@ function VisitaOperacionalContent() {
 
           {/* Botão de Finalizar Visita */}
           {podeEmitirRelatorio && visita.status !== 'cancelada' && <button type="button" onClick={() => void abrirRelatorio()}
-            disabled={consultandoRelatorio || finalizando}
+            disabled={consultandoRelatorio || finalizando || idsPendentes.size > 0}
             className="inline-flex items-center gap-1.5 rounded-xl border border-sky-700 bg-sky-900/60 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-800 disabled:opacity-50">
             <FileCheck className="h-3.5 w-3.5" aria-hidden />
             {consultandoRelatorio ? 'Consultando…' : 'Gerar Relatório'}
@@ -439,7 +485,7 @@ function VisitaOperacionalContent() {
           <button
             type="button"
             onClick={handleConcluirVisita}
-            disabled={finalizando || consultandoRelatorio || visita.status !== 'em_andamento'}
+            disabled={finalizando || consultandoRelatorio || visita.status !== 'em_andamento' || idsPendentes.size > 0}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
               visita.status === 'concluida'
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 cursor-default'
@@ -451,6 +497,17 @@ function VisitaOperacionalContent() {
           </button>
         </div>
       </header>
+
+      {idsPendentes.size > 0 && <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 bg-amber-50 px-4 py-2 text-sm text-amber-950">
+        <p role="status">{idsPendentes.size} {idsPendentes.size === 1 ? 'registro salvo' : 'registros salvos'} neste dispositivo. {falhaEnvio
+          ? 'Envio pendente. Confira a conexão e tente novamente.'
+          : 'O envio será tentado automaticamente com internet.'}</p>
+        <button type="button" className="min-h-8 rounded px-2 font-semibold underline" onClick={() => {
+          if (!usuarioId) return;
+          setFalhaEnvio(false);
+          void sincronizarFilaCampo(usuarioId).catch(() => setFalhaEnvio(true));
+        }}>Tentar sincronizar</button>
+      </div>}
 
       {/* 11 & 12. Mapa de Tela Cheia */}
       <main className="flex-1 w-full h-full relative">
@@ -484,7 +541,8 @@ function VisitaOperacionalContent() {
             type="button"
             id="btn-novo-registro-campo"
             onClick={handleAbrirNovoRegistro}
-            className="group relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-[#333436] hover:bg-[#252628] text-white flex items-center justify-center shadow-2xl shadow-black/60 border-3 border-[#00AFF0] active:scale-95 transition-all focus:outline-hidden"
+            disabled={visita.status !== 'em_andamento' || finalizando}
+            className="group relative w-16 h-16 sm:w-18 sm:h-18 rounded-full bg-[#333436] hover:bg-[#252628] text-white flex items-center justify-center shadow-2xl shadow-black/60 border-3 border-[#00AFF0] active:scale-95 transition-all focus:outline-hidden disabled:opacity-50"
             title="Novo Registro de Campo (Observação ou Ocorrência)"
           >
             {/* Ícone de Exclamação Oficial */}
@@ -516,6 +574,7 @@ function VisitaOperacionalContent() {
         isOpen={!!marcadorSelecionado}
         onClose={() => setMarcadorSelecionado(null)}
         registro={marcadorSelecionado}
+        readOnly={marcadorPendente}
         onEdit={visita.status === 'em_andamento' && (podeEmitirRelatorio || perfil === 'tecnico')
           ? registro => {
             setMarcadorSelecionado(null);

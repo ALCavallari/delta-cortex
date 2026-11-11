@@ -7,10 +7,13 @@ import { registrosDoRelatorio } from '@/services/fieldHistory';
 import { ATIVIDADES } from '@/services/rasActivities';
 import { baixarRelatorio } from '@/services/reportDownload';
 import type { RelatorioListado, TextoRegistroRelatorio } from '@/services/campoSupabase';
+import { useUsuarioId } from '@/components/auth/PerfilContext';
+import { exigirEnvioDosRegistros } from '@/services/filaRegistrosCampo';
 
 export function ReportActivitiesModal({ visita, original, atualizarRegistros = false, onClose, onDone }: {
   visita: Visita; original?: RelatorioListado; atualizarRegistros?: boolean; onClose: () => void; onDone: () => void;
 }) {
+  const usuarioId = useUsuarioId();
   const [selecionadas, setSelecionadas] = useState(original?.atividades ?? visita.atividadesRealizadas ?? []);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
@@ -51,6 +54,7 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
     setOcupado(true);
     setErro('');
     try {
+      await exigirEnvioDosRegistros(usuarioId, visita.id);
       const atividades = ATIVIDADES.filter(a => selecionadas.includes(a));
       const atual = await VisitaRepository.obterPorId(visita.id);
       if (!atual || (atual.status !== 'em_andamento' && atual.status !== 'concluida')) {

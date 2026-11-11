@@ -124,12 +124,14 @@ export const FotografiaSupabaseRepository = {
   },
 };
 
-async function enviarFoto(foto: Fotografia) {
+type ConexaoRegistro = { banco: ReturnType<typeof bancoOperacional>; token: string; usuarioId: string };
+
+async function enviarFoto(foto: Fotografia, conexao?: ConexaoRegistro) {
   if (!/^data:image\/(jpeg|png|webp);base64,/i.test(foto.dataUrl)) throw new Error('Formato de fotografia inválido.');
   const blob = await (await fetch(foto.dataUrl)).blob();
   const nome = `${foto.id}.${blob.type.split('/')[1]}`;
   const path = `${foto.visitaId}/fotografias/${foto.id}/${crypto.randomUUID()}-${nome}`;
-  await enviarObjeto(BUCKET_VISITAS, path, blob, blob.type);
+  await enviarObjeto(BUCKET_VISITAS, path, blob, blob.type, undefined, conexao);
   return {
     id: foto.id, registro_id: foto.registroCampoId, visita_id: foto.visitaId, nome_arquivo: nome,
     storage_path: path, tamanho_bytes: blob.size, tipo_mime: blob.type,
@@ -238,11 +240,17 @@ export const RegistroCampoSupabaseRepository = {
       throw erro;
     }
   },
-  async salvar(r: RegistroCampo) {
+  async salvar(r: RegistroCampo, conexao: ConexaoRegistro) {
+    const { banco, usuarioId } = conexao;
+    // O registro e seus vínculos de fotos são gravados pela mesma RPC.
+    const anterior = await banco.from(registros).select('id')
+      .eq('id', r.id).eq('visita_origem_id', r.visitaId).eq('criado_por', usuarioId).maybeSingle();
+    conferirOperacao(anterior.error, 'confirmar o registro de campo');
+    if (anterior.data) return;
     const enviadas: Awaited<ReturnType<typeof enviarFoto>>[] = [];
     try {
-      for (const foto of r.fotos ?? []) enviadas.push(await enviarFoto(foto));
-      confirmarLinha(await bancoOperacional().rpc('delta_cortex_salvar_registro', {
+      for (const foto of r.fotos ?? []) enviadas.push(await enviarFoto(foto, conexao));
+      confirmarLinha(await banco.rpc('delta_cortex_salvar_registro', {
         p_registro: {
           id: r.id, projeto_id: r.projetoId, visita_origem_id: r.visitaId, tipo: r.tipo, meio_ambiental: r.meio,
           descricao: r.descricao, gravidade: r.gravidade ?? null, latitude: r.latitude, longitude: r.longitude,
@@ -253,7 +261,7 @@ export const RegistroCampoSupabaseRepository = {
         p_fotografias: enviadas,
       }), 'salvar o registro de campo');
     } catch (erro) {
-      await Promise.allSettled(enviadas.map(f => removerEnvioPendente(BUCKET_VISITAS, f.storage_path)));
+      await Promise.allSettled(enviadas.map(f => removerEnvioPendente(BUCKET_VISITAS, f.storage_path, banco)));
       throw erro;
     }
   },

@@ -5,23 +5,25 @@ import { bancoOperacional, confirmarLinha, listarPaginas } from './supabaseOpera
 export const BUCKET_GEOGRAFICO = 'delta-cortex-geograficos';
 export const BUCKET_VISITAS = 'delta-cortex-visitas-sistematicas';
 
-export async function enviarObjeto(bucket: string, path: string, blob: Blob, tipo: string, progresso?: (valor: number) => void) {
-  const banco = bancoOperacional();
+export async function enviarObjeto(bucket: string, path: string, blob: Blob, tipo: string, progresso?: (valor: number) => void,
+  conexao?: { banco: ReturnType<typeof bancoOperacional>; token: string }) {
+  const banco = conexao?.banco ?? bancoOperacional();
   progresso?.(0);
   if (blob.size <= 6 * 1024 * 1024) {
     const { error } = await banco.storage.from(bucket).upload(path, blob, { contentType: tipo, upsert: false });
     if (error) throw new Error('O Supabase não confirmou o envio do arquivo. Verifique a conexão e sua permissão.');
   } else {
-    const { data, error } = await banco.auth.getSession();
+    const sessao = conexao ? null : await banco.auth.getSession();
+    const token = conexao?.token ?? sessao?.data.session?.access_token;
     const config = supabaseConfig();
-    if (error || !data.session || !config) throw new Error('Entre novamente para enviar o arquivo.');
+    if (sessao?.error || !token || !config) throw new Error('Entre novamente para enviar o arquivo.');
     const host = new URL(config.url);
     if (host.hostname.endsWith('.supabase.co')) host.hostname = host.hostname.replace('.supabase.co', '.storage.supabase.co');
     const { Upload } = await import('tus-js-client');
     await new Promise<void>((resolve, reject) => {
       const envio = new Upload(blob, {
         endpoint: new URL('/storage/v1/upload/resumable', host).toString(),
-        headers: { authorization: `Bearer ${data.session.access_token}`, apikey: config.key },
+        headers: { authorization: `Bearer ${token}`, apikey: config.key },
         metadata: { bucketName: bucket, objectName: path, contentType: tipo },
         chunkSize: 6 * 1024 * 1024,
         retryDelays: [0, 1000, 3000, 5000],
@@ -43,8 +45,8 @@ export async function baixarObjeto(bucket: string, path: string) {
   return data;
 }
 
-export async function removerEnvioPendente(bucket: string, path: string) {
-  await bancoOperacional().storage.from(bucket).remove([path]);
+export async function removerEnvioPendente(bucket: string, path: string, banco = bancoOperacional()) {
+  await banco.storage.from(bucket).remove([path]);
 }
 
 export async function enviarGeografico(projetoId: string, arquivo: Omit<ArquivoGeografico, 'projetoId'>, progresso?: (valor: number) => void) {
