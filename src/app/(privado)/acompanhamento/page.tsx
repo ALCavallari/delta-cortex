@@ -9,6 +9,7 @@ import { descricoesModulos } from '@/services/moduleDescriptions';
 import { ProjectOccurrenceMap } from '@/components/Map/ProjectOccurrenceMap';
 import { Header } from '@/components/Header';
 import { NewVisitModal } from '@/components/NewVisitModal';
+import { PainelNotificacoes, useNotificacoesCampo } from '@/components/NotificacoesCampo';
 import { Visita, Cliente, Projeto, Profissional } from '@/types';
 import { usePerfil } from '@/components/auth/PerfilContext';
 import type { Perfil } from '@/services/perfis';
@@ -22,6 +23,7 @@ import {
 } from '@/services/repositoriosOperacionais';
 import {
   Plus,
+  Bell,
   Compass,
   Calendar,
   User,
@@ -54,7 +56,10 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
   const [visitaRelatorios, setVisitaRelatorios] = useState<Visita | null>(null);
   const [baixando, setBaixando] = useState<string | null>(null);
   const [comRelatorio, setComRelatorio] = useState<Set<string>>(new Set());
-  const [aba, setAba] = useState<'trabalhos' | 'mapa'>(clienteExterno ? 'mapa' : 'trabalhos');
+  const [aba, setAba] = useState<'trabalhos' | 'mapa' | 'notificacoes'>(clienteExterno ? 'mapa' : 'trabalhos');
+  const podeNotificar = perfil === 'admin' || tecnicoDesignado;
+  const notificacoes = useNotificacoesCampo(podeNotificar);
+  const novasNotificacoes = notificacoes.lista?.filter(item => item.nova).length ?? 0;
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [clientes, setClientes] = useState<Pick<Cliente, 'id' | 'nomeRazaoSocial'>[]>([]);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
@@ -324,19 +329,26 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <nav aria-label="Áreas de Trabalho de Campo" className="mb-5 flex border-b border-slate-200">
+        <nav aria-label="Áreas de Trabalho de Campo" className="mb-5 flex flex-wrap border-b border-slate-200">
           {([
             ['trabalhos', 'Trabalhos Cadastrados'],
             ['mapa', 'Mapa de Ocorrências/Relatórios'],
-          ] as const).filter(([id]) => !clienteExterno || id === 'mapa').map(([id, titulo]) => (
-            <button key={id} type="button" aria-pressed={aba === id} onClick={() => setAba(id)}
+            ['notificacoes', 'Notificações'],
+          ] as const).filter(([id]) => id === 'notificacoes' ? podeNotificar : !clienteExterno || id === 'mapa').map(([id, titulo]) => (
+            <button key={id} type="button" aria-pressed={aba === id} onClick={() => {
+              setAba(id);
+              if (id === 'notificacoes') void notificacoes.atualizar();
+            }}
               className={`min-h-11 flex-1 border-b-2 px-2 py-2 text-sm font-semibold sm:flex-none sm:px-5 ${aba === id
                 ? 'border-[#00AFF0] text-sky-800' : 'border-transparent text-slate-600 hover:bg-slate-100'}`}>
-              {titulo}
+              {id === 'notificacoes' ? <span className="inline-flex items-center gap-1.5">
+                <Bell size={15} aria-hidden /> {titulo}
+                {novasNotificacoes > 0 && <span aria-label={`${novasNotificacoes} não lidas`} className="rounded-full bg-sky-700 px-1.5 text-xs text-white">{novasNotificacoes}</span>}
+              </span> : titulo}
             </button>
           ))}
         </nav>
-        {aba === 'mapa' ? (
+        {aba === 'notificacoes' ? <PainelNotificacoes {...notificacoes} /> : aba === 'mapa' ? (
           <section aria-labelledby="titulo-mapa-ocorrencias" className="space-y-4">
             <h1 id="titulo-mapa-ocorrencias" className="text-2xl font-bold text-[#333436]">Mapa de Ocorrências/Relatórios</h1>
             {erroCarga ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{erroCarga}</p> :

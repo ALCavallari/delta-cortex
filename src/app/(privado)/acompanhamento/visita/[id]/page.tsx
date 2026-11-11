@@ -1,6 +1,7 @@
 'use client';
 
 import { usePerfil } from '@/components/auth/PerfilContext';
+import { NotificacoesDaVisita } from '@/components/NotificacoesCampo';
 import React, { useState, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -427,6 +428,7 @@ function VisitaOperacionalContent() {
             <History className="w-3.5 h-3.5 text-slate-400" />
             <span className="hidden sm:inline">Excluídos</span>
           </button>
+          {(perfil === 'admin' || perfil === 'tecnico') && <NotificacoesDaVisita key={visita.id} visita={visita} />}
 
           {/* Botão de Finalizar Visita */}
           {podeEmitirRelatorio && visita.status !== 'cancelada' && <button type="button" onClick={() => void abrirRelatorio()}
