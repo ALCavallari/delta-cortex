@@ -13,6 +13,7 @@ import { Check, Layers, Crosshair } from 'lucide-react';
 
 type PontoMapa = [latitude: number, longitude: number];
 export type EnquadramentoMapa = { centro: PontoMapa } | { pontos: PontoMapa[] };
+const creditosSatelite = 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community';
 
 function enquadrarProjeto(map: L.Map, enquadramento: EnquadramentoMapa) {
   if ('centro' in enquadramento) {
@@ -25,6 +26,7 @@ function enquadrarProjeto(map: L.Map, enquadramento: EnquadramentoMapa) {
 }
 
 interface LeafletMapProps {
+  creditosCompactos?: boolean;
   controles?: React.ReactNode;
   enquadramentoProjeto?: EnquadramentoMapa;
   historicoOperacional?: boolean;
@@ -42,6 +44,7 @@ interface LeafletMapProps {
 }
 
 export default function LeafletMap({
+  creditosCompactos = false,
   userLat,
   userLng,
   userAccuracy,
@@ -96,8 +99,7 @@ export default function LeafletMap({
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       {
         maxZoom: 19,
-        attribution:
-          'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+        attribution: creditosSatelite,
       }
     );
 
@@ -122,6 +124,14 @@ export default function LeafletMap({
     };
   }, []);
 
+  useEffect(() => {
+    const controle = mapInstanceRef.current?.attributionControl;
+    if (!creditosCompactos || !controle) return;
+    const prefixo = controle.options.prefix;
+    controle.setPrefix(false);
+    return () => { controle.setPrefix(typeof prefixo === 'string' ? prefixo : false); };
+  }, [creditosCompactos]);
+
   // Alterna entre Satélite e Cartografia (OpenStreetMap)
   const alternarCamada = (novaCamada: 'satelite' | 'mapa') => {
     if (!mapInstanceRef.current || !tileLayerRef.current) return;
@@ -133,7 +143,7 @@ export default function LeafletMap({
         'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
         {
           maxZoom: 19,
-          attribution: 'Tiles &copy; Esri &mdash; World Imagery',
+          attribution: creditosCompactos ? creditosSatelite : 'Tiles &copy; Esri &mdash; World Imagery',
         }
       );
     } else {
@@ -141,7 +151,7 @@ export default function LeafletMap({
         'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
         {
           maxZoom: 19,
-          attribution: '&copy; OpenStreetMap contributors',
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
         }
       );
     }
@@ -234,7 +244,7 @@ export default function LeafletMap({
   return (
     <div className="@container relative w-full h-full flex-1">
       {/* Contêiner Leaflet */}
-      <div ref={mapContainerRef} className="w-full h-full" />
+      <div ref={mapContainerRef} className={`w-full h-full ${creditosCompactos ? '[&_.leaflet-control-attribution]:max-w-[78vw] [&_.leaflet-control-attribution]:text-[9px]! [&_.leaflet-control-attribution]:leading-tight!' : ''}`} />
 
       {/* Controles Flutuantes: Alternador de Camada e Recentralizar */}
       <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">

@@ -3,9 +3,8 @@
 import { usePerfil, useUsuarioId } from '@/components/auth/PerfilContext';
 import { exigirEnvioDosRegistros, observarFilaCampo, registrosPendentes, sincronizarFilaCampo } from '@/services/filaRegistrosCampo';
 import { NotificacoesDaVisita } from '@/components/NotificacoesCampo';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useSyncExternalStore, Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -57,6 +56,17 @@ const LeafletMap = dynamic(() => import('@/components/Map/LeafletMap'), {
   ),
 });
 
+function observarConexao(atualizar: () => void) {
+  window.addEventListener('online', atualizar);
+  window.addEventListener('offline', atualizar);
+  document.addEventListener('visibilitychange', atualizar);
+  return () => {
+    window.removeEventListener('online', atualizar);
+    window.removeEventListener('offline', atualizar);
+    document.removeEventListener('visibilitychange', atualizar);
+  };
+}
+
 function VisitaOperacionalContent() {
   const router = useRouter();
   const perfil = usePerfil();
@@ -67,6 +77,8 @@ function VisitaOperacionalContent() {
   const visitaId = (params?.id as string) || '';
 
   const [visita, setVisita] = useState<Visita | null>(null);
+  const offline = useSyncExternalStore(observarConexao, () => !navigator.onLine, () => false);
+  const [verificandoSaida, setVerificandoSaida] = useState(false);
   const [contexto, setRegistros] = useState<RegistroCampo[]>([]);
   const [locais, setLocais] = useState<RegistroCampo[]>([]);
   const [falhaEnvio, setFalhaEnvio] = useState(false);
@@ -105,6 +117,7 @@ function VisitaOperacionalContent() {
   const [carregandoExcluidos, setCarregandoExcluidos] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [centerMapTrigger, setCenterMapTrigger] = useState(0);
+
 
   // Carrega a visita e os registros de campo associados
   useEffect(() => {
@@ -175,6 +188,22 @@ function VisitaOperacionalContent() {
       setToastMsg(null);
     }, 4000);
   };
+
+  async function voltarAosTrabalhos() {
+    if (!navigator.onLine || verificandoSaida) return;
+    setVerificandoSaida(true);
+    try {
+      const resposta = await fetch('/manifest.webmanifest', {
+        method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000),
+      });
+      if (!resposta.ok || !navigator.onLine) throw new Error();
+      router.push(voltar);
+    } catch {
+      showToast('Não foi possível conectar ao Delta CorteX. A vistoria continua aberta.');
+    } finally {
+      setVerificandoSaida(false);
+    }
+  }
 
   const handleAbrirNovoRegistro = () => {
     if (visita?.status !== 'em_andamento' || finalizando) return;
@@ -301,15 +330,6 @@ function VisitaOperacionalContent() {
     }
   };
 
-  const formatarDataBR = (dataStr: string) => {
-    if (!dataStr) return '';
-    if (dataStr.includes('-')) {
-      const [ano, mes, dia] = dataStr.split('-');
-      return `${dia}/${mes}/${ano}`;
-    }
-    return dataStr;
-  };
-
   if (erroCarga) {
     return <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-900 p-6 text-white">
       <p role="alert">{erroCarga}</p>
@@ -402,33 +422,28 @@ function VisitaOperacionalContent() {
       <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-[#333436] px-4 py-2 text-white shadow-md sm:min-h-20 sm:flex-nowrap sm:px-6 z-30">
         {/* Esquerda: Retorno e Logo */}
         <div className="flex items-center gap-3 sm:gap-4">
-          <Link
-            href={voltar}
-            className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors flex items-center gap-1.5 text-xs font-semibold"
-            title="Voltar ao Trabalho de Campo"
+          <button
+            type="button"
+            disabled={offline || verificandoSaida}
+            onClick={() => void voltarAosTrabalhos()}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-slate-800 p-2 text-xs font-semibold text-slate-300 transition-colors hover:bg-slate-700 hover:text-white disabled:opacity-50 sm:px-3 sm:py-1.5"
+            aria-label={offline ? 'Voltar indisponível sem internet' : 'Voltar ao Trabalho de Campo'}
+            title={offline ? 'Voltar indisponível sem internet' : 'Voltar ao Trabalho de Campo'}
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Voltar</span>
-          </Link>
+          </button>
 
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs font-extrabold px-2 py-0.5 rounded bg-blue-500/20 text-[#00AFF0] border border-blue-400/30">
                 {visita.identificacao}
               </span>
-              <h1 className="text-sm sm:text-base font-bold text-white max-w-[200px] sm:max-w-md truncate">
-                {visita.clienteNome}
+              <h1 className="max-w-[48vw] truncate text-sm font-bold text-white sm:max-w-xs sm:text-base lg:max-w-md" title={visita.identificacaoProjeto}>
+                {visita.identificacaoProjeto || 'Projeto não identificado'}
               </h1>
             </div>
-            {visita.identificacaoProjeto ? (
-              <span className="text-[11px] text-slate-400 truncate max-w-[240px] sm:max-w-md">
-                {visita.identificacaoProjeto}
-              </span>
-            ) : (
-              <span className="text-[11px] text-slate-400">
-                {visita.motivo} • {formatarDataBR(visita.data)}
-              </span>
-            )}
+            {offline && <span className="text-[11px] text-amber-300">Sem internet</span>}
           </div>
         </div>
 
@@ -512,6 +527,7 @@ function VisitaOperacionalContent() {
       {/* 11 & 12. Mapa de Tela Cheia */}
       <main className="flex-1 w-full h-full relative">
         <LeafletMap
+          creditosCompactos
           projetoId={visita.projetoId}
           userLat={userLat}
           userLng={userLng}

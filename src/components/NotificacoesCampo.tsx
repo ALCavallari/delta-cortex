@@ -57,6 +57,7 @@ function DadosNotificacao({ item }: { item: NotificacaoCampo }) {
   return <>
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
       <strong>{item.permanente ? 'Permanente' : 'Única'}</strong>
+      {item.visaoAdministrativa && <span className="text-xs text-slate-600">Visível à administração</span>}
       {item.nova && <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-900">Nova</span>}
       <time dateTime={item.criadaEm} className="text-slate-600">{new Date(item.criadaEm).toLocaleString('pt-BR')}</time>
     </div>
@@ -82,8 +83,8 @@ function EditorNotificacao({ original, fechar, concluir }: {
       .catch(falha => { if (ativo) setErro(mensagemErro(falha)); });
     return () => { ativo = false; };
   }, []);
-  const tecnicoSelecionado = destinos?.find(destino => destino.id === destinatario);
-  const opcoes = tecnicoSelecionado?.projetos ?? [];
+  const contaSelecionada = destinos?.find(destino => destino.id === destinatario);
+  const opcoes = contaSelecionada?.projetos ?? [];
   const selecionados = opcoes.filter(projeto => projetos.includes(projeto.id));
   return <Janela titulo={original ? 'Editar notificação' : 'Nova Notificação'} fechar={() => { if (!ocupado) fechar(); }}>
     <form className="space-y-4" onSubmit={async evento => {
@@ -100,17 +101,18 @@ function EditorNotificacao({ original, fechar, concluir }: {
       } catch (falha) { setErro(mensagemErro(falha)); }
       finally { setOcupado(false); }
     }}>
-      {!destinos && !erro && <p role="status" className="text-sm">Carregando técnicos…</p>}
-      {destinos?.length === 0 && <p className="text-sm text-slate-600">Nenhum técnico com conta ativa e vinculada está disponível para o seu perfil.</p>}
+      {!destinos && !erro && <p role="status" className="text-sm">Carregando destinatários…</p>}
+      {destinos?.length === 0 && <p className="text-sm text-slate-600">Nenhuma conta elegível para receber notificações está disponível.</p>}
       <fieldset disabled={ocupado} className="space-y-4">
-        <label className="block text-sm font-semibold">Técnico destinatário
+        <label className="block text-sm font-semibold">Destinatário
           <select required className={campo} value={destinatario} onChange={evento => { setDestinatario(evento.target.value); setProjetos([]); }}>
-            <option value="">Selecione um técnico</option>
-            {destinos?.map(destino => <option key={destino.id} value={destino.id}>{destino.nome}</option>)}
+            <option value="">Selecione um usuário</option>
+            {destinos?.map(destino => <option key={destino.id} value={destino.id}>{destino.nome} · {destino.papel === 'admin' ? 'Administrador' : 'Técnico'}</option>)}
           </select>
         </label>
-        {tecnicoSelecionado && opcoes.length === 0 && <p className="text-sm text-slate-600">
-          Este técnico ainda não tem projetos autorizados. Vincule um projeto à conta em Administração de Usuários para poder enviar a notificação.
+        {contaSelecionada && opcoes.length === 0 && <p className="text-sm text-slate-600">
+          {contaSelecionada.papel === 'admin' ? 'Cadastre um projeto ativo para enviar a notificação.' :
+            'Este técnico ainda não tem projetos autorizados. Vincule um projeto à conta em Administração de Usuários para poder enviar a notificação.'}
         </p>}
         {opcoes.length > 0 && <fieldset className="space-y-2 rounded-xl border border-slate-200 p-3 text-sm">
           <legend className="px-1 font-semibold">Projetos</legend>
@@ -155,7 +157,7 @@ export function PainelNotificacoes({ lista, erro, atualizar }: ReturnType<typeof
     </div>
     {(erro || erroAcao) && <p role="alert" className="text-sm text-red-700">{erro || erroAcao}</p>}
     {!lista && !erro && <p role="status">Carregando notificações…</p>}
-    {lista?.length === 0 && <p className="text-sm text-slate-600">Nenhuma notificação enviada ou recebida.</p>}
+    {lista?.length === 0 && <p className="text-sm text-slate-600">Nenhuma notificação disponível.</p>}
     <ul className="space-y-3">{lista?.map(item => <li key={item.id}
       className={`flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4 ${item.nova ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-white'}`}>
       <div className="min-w-0 break-words"><DadosNotificacao item={item} /><p className="mt-2 line-clamp-2 text-sm">{item.mensagem}</p></div>
