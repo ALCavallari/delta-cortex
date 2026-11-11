@@ -73,6 +73,8 @@ export function ProjectOccurrenceMap({ projetos, clientes, carregando, portal = 
   </div>;
 }
 
+const filtrosVazios = { meio: '', gravidade: '', situacao: '', descricao: '' };
+
 function OcorrenciasProjeto({ projeto, cliente, portal }: { projeto: Projeto; cliente?: string; portal: boolean }) {
   const [arquivos, setArquivos] = useState<ArquivoGeografico[]>([]);
   const [falhaArquivos, setFalhaArquivos] = useState(false);
@@ -80,10 +82,9 @@ function OcorrenciasProjeto({ projeto, cliente, portal }: { projeto: Projeto; cl
   const [falha, setFalha] = useState(false);
   const [tentativa, setTentativa] = useState(0);
   const [historico, setHistorico] = useState(false);
-  const [meio, setMeio] = useState('');
-  const [gravidade, setGravidade] = useState('');
-  const [situacao, setSituacao] = useState('');
-  const [descricao, setDescricao] = useState('');
+  const [rascunho, setRascunho] = useState(filtrosVazios);
+  const [filtrosAplicados, setFiltrosAplicados] = useState(filtrosVazios);
+  const { meio, gravidade, situacao, descricao } = filtrosAplicados;
   const [expandido, setExpandido] = useState(false);
   const [filtrosExpandidos, setFiltrosExpandidos] = useState(false);
   const [recentralizar, setRecentralizar] = useState(0);
@@ -175,23 +176,33 @@ function OcorrenciasProjeto({ projeto, cliente, portal }: { projeto: Projeto; cl
   </div>;
   if (!registros) return <p role="status" className="p-4 text-sm text-slate-600">Carregando ocorrências…</p>;
   const resolvidas = registros.filter(resolvida).length;
+  function alterarHistorico(valor: boolean) {
+    setHistorico(valor);
+    setRascunho(atual => ({ ...atual, situacao: '' }));
+    setFiltrosAplicados(atual => ({ ...atual, situacao: '' }));
+  }
 
   const controleHistorico = (
     <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
-      <input type="checkbox" role="switch" checked={historico} className="h-5 w-5 accent-[#00AFF0]" onChange={e => {
-        setHistorico(e.target.checked);
-        setSituacao('');
-      }} />
+      <input type="checkbox" role="switch" checked={historico} className="h-5 w-5 accent-[#00AFF0]" onChange={e => alterarHistorico(e.target.checked)} />
       Exibir Histórico
     </label>
   );
   const limparFiltros = (
     <button type="button" className="rounded-lg px-3 py-2 text-sm font-semibold text-sky-800 hover:bg-sky-50"
-      onClick={() => { setMeio(''); setGravidade(''); setSituacao(''); setDescricao(''); setHistorico(false); }}>Limpar Filtros</button>
+      onClick={() => { setRascunho(filtrosVazios); setFiltrosAplicados(filtrosVazios); setHistorico(false); }}>Limpar Filtros</button>
   );
-  const camposFiltros = <CamposFiltrosMapa historico={historico} meio={meio} gravidade={gravidade}
-    situacao={situacao} descricao={descricao} setMeio={setMeio} setGravidade={setGravidade}
-    setSituacao={setSituacao} setDescricao={setDescricao} />;
+  const camposFiltros = <CamposFiltrosMapa historico={historico} {...rascunho}
+    setMeio={valor => setRascunho(atual => ({ ...atual, meio: valor }))}
+    setGravidade={valor => setRascunho(atual => ({ ...atual, gravidade: valor }))}
+    setSituacao={valor => setRascunho(atual => ({ ...atual, situacao: valor }))}
+    setDescricao={valor => setRascunho(atual => ({ ...atual, descricao: valor }))} />;
+  const aplicarFiltros = <button type="button" className="rounded-lg bg-sky-700 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-800"
+    onClick={() => {
+      setFiltrosAplicados(rascunho);
+      setMostrarFiltros(false);
+      setFiltrosExpandidos(false);
+    }}>Aplicar filtros</button>;
 
   return <div className="space-y-3">
     {falhaArquivos && <p role="alert" className="text-sm text-red-700">Não foi possível carregar as camadas geográficas.</p>}
@@ -205,6 +216,7 @@ function OcorrenciasProjeto({ projeto, cliente, portal }: { projeto: Projeto; cl
       </div>
       <div id="filtros-ocorrencias" className={`${mostrarFiltros ? 'grid' : 'hidden'} gap-2 sm:grid-cols-2 lg:grid lg:grid-cols-4`}>
         {camposFiltros}
+        <div className="flex justify-end sm:col-span-2 lg:col-span-4">{aplicarFiltros}</div>
       </div>
     </section>
     <div aria-live="polite" className={expandido ? 'hidden' : 'flex flex-wrap gap-2 text-xs text-slate-700'}>
@@ -233,9 +245,9 @@ function OcorrenciasProjeto({ projeto, cliente, portal }: { projeto: Projeto; cl
               recentralizarProjeto={recentralizar} userLat={null} userLng={null} userAccuracy={null}
               registros={marcadores} onSelectMarker={abrirDetalhes}
               controles={expandido ? <MapFilterToolbar historico={historico} aberto={filtrosExpandidos}
-                onHistorico={valor => { setHistorico(valor); setSituacao(''); }}
+                onHistorico={alterarHistorico}
                 onAbrir={() => setFiltrosExpandidos(valor => !valor)} onCentralizar={() => setRecentralizar(valor => valor + 1)}>
-                {camposFiltros}{limparFiltros}
+                {camposFiltros}<div className="flex flex-wrap justify-end gap-2">{limparFiltros}{aplicarFiltros}</div>
               </MapFilterToolbar> : undefined} />
               : <div className="flex h-full flex-col items-center justify-center gap-3 bg-white p-6 pt-20 text-center text-sm text-slate-600">
                 <MapPin aria-hidden /> Este projeto não tem localização cadastrada nem ocorrências com coordenadas válidas.

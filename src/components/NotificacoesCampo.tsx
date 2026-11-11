@@ -1,8 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { Bell, Pencil, Plus, Trash2 } from 'lucide-react';
-import { notificacoesCampo, type DestinatarioCampo, type NotificacaoCampo } from '@/services/notificacoesCampo';
+import { Bell, Download, Paperclip, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useUsuarioId } from '@/components/auth/PerfilContext';
+import {
+  baixarAnexoNotificacao, excluirNotificacaoCampo, extensoesAnexoNotificacao, notificacoesCampo, salvarNotificacaoCampo,
+  type AnexoNotificacao, type DestinatarioCampo, type NotificacaoCampo,
+} from '@/services/notificacoesCampo';
 import type { Visita } from '@/types';
 
 const botao = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50';
@@ -66,13 +70,34 @@ function DadosNotificacao({ item }: { item: NotificacaoCampo }) {
   </>;
 }
 
+function BaixarAnexo({ anexo }: { anexo: AnexoNotificacao }) {
+  const [baixando, setBaixando] = useState(false);
+  const [erro, setErro] = useState('');
+  return <div className="my-3 space-y-1">
+    <button type="button" disabled={baixando} className={`${botao} max-w-full`} onClick={async () => {
+      setBaixando(true);
+      setErro('');
+      try { await baixarAnexoNotificacao(anexo); }
+      catch { setErro('Não foi possível baixar o anexo. Confira a conexão e seu acesso.'); }
+      finally { setBaixando(false); }
+    }}>
+      <Download size={16} className="shrink-0" aria-hidden />
+      <span className="break-all text-left">{baixando ? 'Baixando…' : `Baixar ${anexo.nome}`}</span>
+    </button>
+    {erro && <p role="alert" className="text-xs text-red-700">{erro}</p>}
+  </div>;
+}
+
 function EditorNotificacao({ original, fechar, concluir }: {
   original?: NotificacaoCampo; fechar: () => void; concluir: () => void;
 }) {
+  const usuarioId = useUsuarioId();
   const [destinos, setDestinos] = useState<DestinatarioCampo[]>();
   const [destinatario, setDestinatario] = useState(original?.destinatarioId ?? '');
   const [projetos, setProjetos] = useState(original?.projetos.map(projeto => projeto.id) ?? []);
   const [mensagem, setMensagem] = useState(original?.mensagem ?? '');
+  const [arquivo, setArquivo] = useState<File>();
+  const [removerAnexo, setRemoverAnexo] = useState(false);
   const [permanente, setPermanente] = useState(original?.permanente ?? false);
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
@@ -86,6 +111,7 @@ function EditorNotificacao({ original, fechar, concluir }: {
   const contaSelecionada = destinos?.find(destino => destino.id === destinatario);
   const opcoes = contaSelecionada?.projetos ?? [];
   const selecionados = opcoes.filter(projeto => projetos.includes(projeto.id));
+  const nomeAnexo = arquivo?.name ?? (removerAnexo ? undefined : original?.anexo?.nome);
   return <Janela titulo={original ? 'Editar notificação' : 'Nova Notificação'} fechar={() => { if (!ocupado) fechar(); }}>
     <form className="space-y-4" onSubmit={async evento => {
       evento.preventDefault();
@@ -93,10 +119,10 @@ function EditorNotificacao({ original, fechar, concluir }: {
       setOcupado(true);
       setErro('');
       try {
-        await notificacoesCampo('salvar', {
+        await salvarNotificacaoCampo(usuarioId, {
           p_id: original?.id, p_destinatario: destinatario, p_projetos: selecionados.map(p => p.id),
           p_mensagem: mensagem, p_permanente: permanente,
-        });
+        }, arquivo, removerAnexo);
         concluir();
       } catch (falha) { setErro(mensagemErro(falha)); }
       finally { setOcupado(false); }
@@ -134,6 +160,22 @@ function EditorNotificacao({ original, fechar, concluir }: {
         <label className="block text-sm font-semibold">Mensagem
           <textarea required rows={4} maxLength={4000} className={campo} value={mensagem} onChange={evento => setMensagem(evento.target.value)} />
         </label>
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold">Anexar documento <span className="font-normal text-slate-600">(até 6 MB)</span>
+            <input type="file" accept={extensoesAnexoNotificacao}
+              className={`${campo} file:mr-2 file:font-semibold file:text-sky-800`}
+              onChange={evento => {
+                const selecionado = evento.target.files?.[0];
+                if (selecionado) { setArquivo(selecionado); setRemoverAnexo(false); }
+                evento.target.value = '';
+              }} />
+          </label>
+          {nomeAnexo && <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 p-2 text-sm">
+            <span className="inline-flex min-w-0 items-center gap-2 break-all"><Paperclip size={15} className="shrink-0" aria-hidden /> {nomeAnexo}</span>
+            <button type="button" className="px-2 py-1 font-semibold text-red-700 hover:underline"
+              onClick={() => { setArquivo(undefined); setRemoverAnexo(true); }}>Remover anexo</button>
+          </div>}
+        </div>
       </fieldset>
       {erro && <p role="alert" className="text-sm text-red-700">{erro}</p>}
       <div className="flex flex-wrap justify-end gap-2">
@@ -145,6 +187,7 @@ function EditorNotificacao({ original, fechar, concluir }: {
 }
 
 export function PainelNotificacoes({ lista, erro, atualizar }: ReturnType<typeof useNotificacoesCampo>) {
+  const usuarioId = useUsuarioId();
   const [edicao, setEdicao] = useState<{ original?: NotificacaoCampo }>();
   const [aberta, setAberta] = useState<NotificacaoCampo>();
   const [exclusao, setExclusao] = useState<NotificacaoCampo>();
@@ -160,7 +203,10 @@ export function PainelNotificacoes({ lista, erro, atualizar }: ReturnType<typeof
     {lista?.length === 0 && <p className="text-sm text-slate-600">Nenhuma notificação disponível.</p>}
     <ul className="space-y-3">{lista?.map(item => <li key={item.id}
       className={`flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4 ${item.nova ? 'border-sky-300 bg-sky-50' : 'border-slate-200 bg-white'}`}>
-      <div className="min-w-0 break-words"><DadosNotificacao item={item} /><p className="mt-2 line-clamp-2 text-sm">{item.mensagem}</p></div>
+      <div className="min-w-0 break-words">
+        <DadosNotificacao item={item} /><p className="mt-2 line-clamp-2 text-sm">{item.mensagem}</p>
+        {item.anexo && <p className="mt-2 flex items-center gap-1 text-xs text-slate-600"><Paperclip size={14} aria-hidden /> Documento anexo</p>}
+      </div>
       <div className="flex flex-wrap gap-2">
         <button type="button" className={botao} onClick={() => {
           setAberta(item);
@@ -176,6 +222,7 @@ export function PainelNotificacoes({ lista, erro, atualizar }: ReturnType<typeof
     {aberta && <Janela titulo="Notificação" fechar={() => setAberta(undefined)}>
       <DadosNotificacao item={aberta} />
       <p className="my-4 whitespace-pre-wrap break-words text-sm">{aberta.mensagem}</p>
+      {aberta.anexo && <BaixarAnexo anexo={aberta.anexo} />}
       <button type="button" className={botao} onClick={() => setAberta(undefined)}>Fechar</button>
     </Janela>}
     {exclusao && <Janela titulo="Excluir notificação" fechar={() => { if (!ocupado) setExclusao(undefined); }}>
@@ -185,7 +232,7 @@ export function PainelNotificacoes({ lista, erro, atualizar }: ReturnType<typeof
         <button type="button" className={botao} disabled={ocupado} onClick={() => setExclusao(undefined)}>Cancelar</button>
         <button type="button" className={`${botao} text-red-700`} disabled={ocupado} onClick={async () => {
           setOcupado(true);
-          try { await notificacoesCampo('excluir', { p_id: exclusao.id }); setExclusao(undefined); await atualizar(); }
+          try { await excluirNotificacaoCampo(usuarioId, exclusao.id); setExclusao(undefined); await atualizar(); }
           catch (falha) { setErroAcao(mensagemErro(falha)); }
           finally { setOcupado(false); }
         }}>Excluir</button>
@@ -253,6 +300,7 @@ export function NotificacoesDaVisita({ visita }: { visita: Visita }) {
       <ul className="space-y-3">{lista?.map(item => <li key={item.id} className="rounded-xl border border-slate-200 p-3">
         <DadosNotificacao item={item} />
         <p className="mt-2 whitespace-pre-wrap break-words text-sm">{item.mensagem}</p>
+        {item.anexo && <BaixarAnexo anexo={item.anexo} />}
       </li>)}</ul>
       <button type="button" className={`${botao} mt-4`} onClick={() => setJanela(undefined)}>Fechar</button>
     </Janela>}
