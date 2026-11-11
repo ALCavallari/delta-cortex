@@ -398,7 +398,7 @@ function VisitaOperacionalContent() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-slate-900 overflow-hidden relative select-none">
+    <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-slate-900 select-none">
       {relatorioModal && <ReportActivitiesModal visita={visita} original={relatorioModal.original} atualizarRegistros
         onClose={() => setRelatorioModal(null)} onDone={async () => {
           try {
@@ -419,7 +419,7 @@ function VisitaOperacionalContent() {
       )}
 
       {/* 11.1 Cabeçalho Operacional Compacto */}
-      <header className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-[#333436] px-4 py-2 text-white shadow-md sm:min-h-20 sm:flex-nowrap sm:px-6 z-30">
+      <header className="z-30 flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-800 bg-[#333436] px-4 py-2 text-white shadow-md sm:min-h-20 sm:px-6 lg:flex-nowrap">
         {/* Esquerda: Retorno e Logo */}
         <div className="flex items-center gap-3 sm:gap-4">
           <button
@@ -448,7 +448,7 @@ function VisitaOperacionalContent() {
         </div>
 
         {/* Centro / Direita: Status do GPS e Ações */}
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-4">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
           {/* Indicador de Sinal GPS */}
           <div
             onClick={() => refreshLocation()}
@@ -493,7 +493,7 @@ function VisitaOperacionalContent() {
           {/* Botão de Finalizar Visita */}
           {podeEmitirRelatorio && visita.status !== 'cancelada' && <button type="button" onClick={() => void abrirRelatorio()}
             disabled={consultandoRelatorio || finalizando || idsPendentes.size > 0}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-700 bg-sky-900/60 px-3 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-800 disabled:opacity-50">
+            className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border border-sky-700 bg-sky-900/60 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-sky-100 hover:bg-sky-800 disabled:opacity-50">
             <FileCheck className="h-3.5 w-3.5" aria-hidden />
             {consultandoRelatorio ? 'Consultando…' : 'Gerar Relatório'}
           </button>}
@@ -525,7 +525,7 @@ function VisitaOperacionalContent() {
       </div>}
 
       {/* 11 & 12. Mapa de Tela Cheia */}
-      <main className="flex-1 w-full h-full relative">
+      <main className="relative min-h-0 w-full flex-1">
         <LeafletMap
           creditosCompactos
           projetoId={visita.projetoId}

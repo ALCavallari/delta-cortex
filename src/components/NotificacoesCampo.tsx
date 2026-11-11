@@ -78,11 +78,11 @@ function EditorNotificacao({ original, fechar, concluir }: {
   const [erro, setErro] = useState('');
   useEffect(() => {
     let ativo = true;
-    void notificacoesCampo<DestinatarioCampo[]>('destinos')
+    void notificacoesCampo<DestinatarioCampo[]>('destinos', { p_id: original?.id })
       .then(dados => { if (ativo) setDestinos(dados); })
       .catch(falha => { if (ativo) setErro(mensagemErro(falha)); });
     return () => { ativo = false; };
-  }, []);
+  }, [original?.id]);
   const contaSelecionada = destinos?.find(destino => destino.id === destinatario);
   const opcoes = contaSelecionada?.projetos ?? [];
   const selecionados = opcoes.filter(projeto => projetos.includes(projeto.id));
@@ -166,7 +166,7 @@ export function PainelNotificacoes({ lista, erro, atualizar }: ReturnType<typeof
           setAberta(item);
           if (item.nova) void notificacoesCampo('ler', { p_id: item.id }).then(atualizar).catch(falha => setErroAcao(mensagemErro(falha)));
         }}>Abrir</button>
-        {item.enviada && <>
+        {(item.podeGerenciar ?? item.enviada) && <>
           <button type="button" className={botao} onClick={() => setEdicao({ original: item })}><Pencil size={15} aria-hidden /> Editar</button>
           <button type="button" className={botao} onClick={() => { setErroAcao(''); setExclusao(item); }}><Trash2 size={15} aria-hidden /> Excluir</button>
         </>}

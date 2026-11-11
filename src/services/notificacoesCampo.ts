@@ -4,7 +4,8 @@ type ProjetoNotificado = { id: string; nome: string };
 export type DestinatarioCampo = { id: string; nome: string; papel?: 'admin' | 'tecnico'; projetos: ProjetoNotificado[] };
 export type NotificacaoCampo = {
   id: string; remetente: string; destinatario: string; destinatarioId: string;
-  enviada: boolean; nova: boolean; permanente: boolean; mensagem: string; visaoAdministrativa?: boolean;
+  enviada: boolean; nova: boolean; permanente: boolean; mensagem: string;
+  visaoAdministrativa?: boolean; podeGerenciar?: boolean;
   criadaEm: string; projetos: ProjetoNotificado[];
 };
 
