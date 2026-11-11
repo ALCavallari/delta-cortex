@@ -303,6 +303,10 @@ async function baixarLinhaRelatorio(r: LinhaRelatorio): Promise<RelatorioVisita>
 }
 
 export const RelatorioSupabaseRepository = {
+  async proximoNumero(projetoId: string) {
+    return confirmarLinha(await bancoOperacional().rpc('delta_cortex_proximo_numero_relatorio', { p_projeto: projetoId }),
+      'calcular a próxima numeração do relatório') as number;
+  },
   salvarAtividades: (id: string, atividades: string[]) => atualizarVisita(id, { atividades_realizadas: atividades }, 'salvar as atividades'),
   async adicionar(r: RelatorioVisita, originalId?: string, verificarRelatorioAtual = false, textos?: TextoRegistroRelatorio[]) {
     const path = `${r.visitaId}/relatorios/${r.id}/${crypto.randomUUID()}.pdf`;
@@ -322,6 +326,9 @@ export const RelatorioSupabaseRepository = {
         : await banco.rpc('delta_cortex_adicionar_relatorio', { p_relatorio });
       if (textos && resultado.error?.code === '40001') {
         throw new Error('O relatório ou um registro mudou durante a edição. Reabra o editor para carregar a versão atual.');
+      }
+      if (resultado.error?.code === 'PDC03') {
+        throw new Error('Este código já foi usado neste projeto. Informe outro número e salve novamente.');
       }
       confirmarLinha(resultado, 'publicar o relatório');
     } catch (erro) {

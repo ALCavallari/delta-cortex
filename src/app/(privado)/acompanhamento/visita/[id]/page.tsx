@@ -71,7 +71,7 @@ function VisitaOperacionalContent() {
   const router = useRouter();
   const perfil = usePerfil();
   const usuarioId = useUsuarioId();
-  const podeEmitirRelatorio = perfil === 'admin' || perfil === 'editor';
+  const podeEmitirRelatorio = perfil === 'admin' || perfil === 'editor' || perfil === 'tecnico';
   const voltar = '/acompanhamento';
   const params = useParams();
   const visitaId = (params?.id as string) || '';
@@ -317,8 +317,8 @@ function VisitaOperacionalContent() {
     try {
       await exigirEnvioDosRegistros(usuarioId, visita.id);
       const [original] = await RelatorioRepository.listarMetadados({ visitaId: visita.id });
-      if (original && perfil !== 'admin') {
-        showToast('Já há um relatório vinculado à visita. Somente administradores podem substituí-lo.');
+      if (original && perfil === 'editor') {
+        showToast('Já há um relatório vinculado à visita. A substituição exige perfil de administrador ou técnico autorizado.');
         return;
       }
       if (original && !window.confirm('Já há um relatório vinculado à esta visita. Deseja sobrescrever o arquivo?')) return;
@@ -591,7 +591,7 @@ function VisitaOperacionalContent() {
         onClose={() => setMarcadorSelecionado(null)}
         registro={marcadorSelecionado}
         readOnly={marcadorPendente}
-        onEdit={visita.status === 'em_andamento' && (podeEmitirRelatorio || perfil === 'tecnico')
+        onEdit={visita.status === 'em_andamento' && podeEmitirRelatorio
           ? registro => {
             setMarcadorSelecionado(null);
             setModalExcluidosAberto(false);

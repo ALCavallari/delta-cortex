@@ -20,7 +20,24 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
   const [salvo, setSalvo] = useState(false);
   const [registrosOriginais, setRegistrosOriginais] = useState<RegistroCampo[]>();
   const [descricoes, setDescricoes] = useState<Record<string, string>>({});
+  const numeroOriginal = original?.nomeArquivo.match(/^RAS-(\d{1,9})-\d{4}\.pdf$/)?.[1];
+  const [sugestao, setSugestao] = useState('');
+  const [numeroDigitado, setNumeroDigitado] = useState<string>();
+  const [erroNumeracao, setErroNumeracao] = useState(false);
+  const numero = numeroDigitado ?? numeroOriginal ?? sugestao;
+  const numeroValido = /^\d{1,9}$/.test(numero) && Number(numero) > 0;
+  const ano = visita.data.slice(0, 4);
+  const codigo = numeroValido ? `RAS-${String(Number(numero)).padStart(3, '0')}-${ano}` : '';
   const revisarTextos = original && !atualizarRegistros;
+
+  useEffect(() => {
+    if (numeroOriginal || !visita.projetoId) return;
+    let ativo = true;
+    void RelatorioRepository.proximoNumero(visita.projetoId).then(valor => {
+      if (ativo) setSugestao(String(valor));
+    }).catch(() => { if (ativo) setErroNumeracao(true); });
+    return () => { ativo = false; };
+  }, [numeroOriginal, visita.projetoId]);
 
   useEffect(() => {
     if (!original || atualizarRegistros) return;
@@ -46,7 +63,7 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
   }, [original, atualizarRegistros, visita]);
 
   const descricaoVazia = registrosOriginais?.some(registro => descricoes[registro.id]?.trim() === '');
-  const podeSalvar = !ocupado && !salvo && selecionadas.length > 0 &&
+  const podeSalvar = !ocupado && !salvo && selecionadas.length > 0 && numeroValido &&
     (!revisarTextos || (registrosOriginais !== undefined && !descricaoVazia));
 
   async function gerar() {
@@ -85,7 +102,7 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
         }
         textos = revisoes;
       }
-      const relatorio = await gerarRelatorio(atual, atividades, incluidos);
+      const relatorio = await gerarRelatorio(atual, atividades, incluidos, codigo);
       if (!relatorio.pdf.size) throw new Error('O PDF gerado está vazio.');
       await RelatorioRepository.adicionar(relatorio, original?.id, atualizarRegistros, textos);
       setSalvo(true);
@@ -105,6 +122,16 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
           ? 'Corrija as atividades para gerar uma nova versão do relatório. O PDF anterior será arquivado.'
           : 'Selecione as atividades executadas durante esta visita.'}</p>
         <div className="min-h-0 overflow-y-auto">
+          <label className="mb-4 block text-sm font-semibold">
+            Número do relatório
+            <input type="text" inputMode="numeric" pattern="[0-9]{1,9}" maxLength={9}
+              disabled={ocupado} required value={numero} onChange={e => setNumeroDigitado(e.target.value)}
+              placeholder={erroNumeracao ? 'Digite o número' : 'Calculando o próximo número…'}
+              className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 font-normal sm:max-w-xs" />
+          </label>
+          {codigo && <p className="mb-3 font-mono text-sm text-slate-600">{codigo}</p>}
+          {numero && !numeroValido && <p role="alert" className="mb-3 text-sm text-red-700">Informe um número positivo de até nove dígitos.</p>}
+          {erroNumeracao && <p className="mb-3 text-sm text-slate-600">A sugestão automática está indisponível. Você pode informar o número manualmente.</p>}
           <fieldset disabled={ocupado} className="space-y-1">
             <legend className="sr-only">Atividades executadas</legend>
             {ATIVIDADES.map(a => <label key={a} className="flex cursor-pointer items-center gap-3 rounded-lg p-2 text-sm hover:bg-slate-50">

@@ -110,7 +110,7 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
       setClientes(contexto.clientes);
       setProjetos(listaProjetos);
       setProfissionais(contexto.profissionais);
-      if (!restrito) {
+      if (!clienteExterno) {
         try { setComRelatorio(await RelatorioRepository.visitasComRelatorio()); }
         catch { showToast('Não foi possível consultar os relatórios salvos.'); }
       }
@@ -356,7 +356,7 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
             <h1 id="titulo-mapa-ocorrencias" className="text-2xl font-bold text-[#333436]">Mapa de Ocorrências/Relatórios</h1>
             {erroCarga ? <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{erroCarga}</p> :
               <ProjectOccurrenceMap projetos={projetos} clientes={clientes} carregando={carregando} portal={clienteExterno}
-                restrito={restrito} exibirRelatorios={!restrito} />}
+                restrito={restrito} exibirRelatorios={!clienteExterno} />}
           </section>
         ) : <>
         {/* Cabeçalho da Seção & Ações de Topo */}
@@ -742,7 +742,7 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
                     </Link>
 
                     {comRelatorio.has(visita.id) && <>
-                      {perfil === 'admin' && <button type="button" title="Gerenciar relatórios"
+                      {(perfil === 'admin' || tecnicoDesignado) && <button type="button" title="Gerenciar relatórios"
                         aria-label={`Editar ou excluir relatórios de ${visita.identificacao}`}
                         className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-sky-700 hover:bg-sky-50"
                         onClick={() => setVisitaRelatorios(visita)}><FilePenLine className="h-4 w-4" /></button>}
@@ -784,7 +784,7 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
       </main>
       {visitaCompartilhada && <ShareReportModal key={visitaCompartilhada.id}
         visitaId={visitaCompartilhada.id} onClose={() => setVisitaCompartilhada(null)} />}
-      {perfil === 'admin' && visitaRelatorios && <RelatoriosEmitidos key={visitaRelatorios.id} visita={visitaRelatorios}
+      {(perfil === 'admin' || tecnicoDesignado) && visitaRelatorios && <RelatoriosEmitidos key={visitaRelatorios.id} visita={visitaRelatorios}
         fechar={() => setVisitaRelatorios(null)} onAlterado={() => void carregarDados()} />}
 
       {/* Modal Novo Trabalho */}
