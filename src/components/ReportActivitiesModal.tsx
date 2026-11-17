@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { RegistroCampo, Visita } from '@/types';
-import { ProjetoRepository, RegistroCampoRepository, RelatorioRepository, VisitaRepository } from '@/services/repositoriosOperacionais';
+import { RegistroCampoRepository, RelatorioRepository, VisitaRepository } from '@/services/repositoriosOperacionais';
 import { registrosDoRelatorio } from '@/services/fieldHistory';
 import { ATIVIDADES } from '@/services/rasActivities';
 import { baixarRelatorio } from '@/services/reportDownload';
@@ -77,10 +77,10 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
       if (!atual || (atual.status !== 'em_andamento' && atual.status !== 'concluida')) {
         throw new Error('A visita está indisponível para emitir o relatório.');
       }
-      const [registros, { gerarRelatorio }, projeto] = await Promise.all([
+      const [registros, { gerarRelatorio }, dadosAtuais] = await Promise.all([
         RegistroCampoRepository.listarNoContexto(atual),
         import('@/services/rasPdf'),
-        atual.projetoId ? ProjetoRepository.obterPorId(atual.projetoId) : undefined,
+        RelatorioRepository.dadosAtuais(atual.id),
       ]);
       let incluidos = registrosDoRelatorio(registros, atual);
       let textos: TextoRegistroRelatorio[] | undefined;
@@ -103,7 +103,8 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
         }
         textos = revisoes;
       }
-      const relatorio = await gerarRelatorio(atual, atividades, incluidos, codigo, projeto?.abreviacao);
+      const { abreviacaoProjeto, ...identificacaoAtual } = dadosAtuais;
+      const relatorio = await gerarRelatorio({ ...atual, ...identificacaoAtual }, atividades, incluidos, codigo, abreviacaoProjeto ?? undefined);
       if (!relatorio.pdf.size) throw new Error('O PDF gerado está vazio.');
       await RelatorioRepository.adicionar(relatorio, original?.id, atualizarRegistros, textos);
       setSalvo(true);

@@ -274,6 +274,9 @@ type LinhaRelatorio = {
 
 export type RelatorioListado = Omit<RelatorioVisita, 'pdf'> & { identificacaoVisita?: string };
 export type TextoRegistroRelatorio = { id: string; anterior: string; descricao: string };
+type DadosAtuaisRelatorio = Pick<Visita,
+  'clienteId' | 'clienteNome' | 'projetoId' | 'identificacaoProjeto' | 'executorNome' | 'responsavelTecnicoNome'
+> & { abreviacaoProjeto: string | null };
 type LinhaRelatorioComVisita = LinhaRelatorio & { visitas_sistematicas?: { identificacao: string } };
 
 function resumoRelatorio(r: LinhaRelatorioComVisita): RelatorioListado {
@@ -303,6 +306,10 @@ async function baixarLinhaRelatorio(r: LinhaRelatorio): Promise<RelatorioVisita>
 }
 
 export const RelatorioSupabaseRepository = {
+  async dadosAtuais(visitaId: string) {
+    return confirmarLinha(await bancoOperacional().rpc('delta_cortex_dados_atuais_relatorio', { p_visita: visitaId }),
+      'consultar os cadastros atuais do relatório') as unknown as DadosAtuaisRelatorio;
+  },
   async proximoNumero(projetoId: string) {
     return confirmarLinha(await bancoOperacional().rpc('delta_cortex_proximo_numero_relatorio', { p_projeto: projetoId }),
       'calcular a próxima numeração do relatório') as number;
