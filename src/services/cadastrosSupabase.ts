@@ -5,6 +5,7 @@ import { acessoOperacional, bancoOperacional, confirmarLinha, conferirOperacao, 
 import { enviarGeografico, removerEnvioPendente } from './arquivosSupabase';
 
 type LinhaProjeto = {
+  abreviacao: string | null;
   id: string; cliente_id: string; nome: string; descricao: string; prazo: string | null;
   link_google_maps_original: string | null; criado_em: string; atualizado_em: string; excluido_em: string | null;
   utm_easting: number | null; utm_northing: number | null; utm_zona: number | null;
@@ -16,6 +17,7 @@ function projetoDaLinha(r: LinhaProjeto): Projeto {
   const { utm_easting: easting, utm_northing: northing, utm_zona: zona, utm_hemisferio: hemisferio, datum, latitude, longitude } = r;
   return {
     id: r.id, clienteId: r.cliente_id, nome: r.nome, descricao: r.descricao, prazo: r.prazo,
+    abreviacao: r.abreviacao ?? undefined,
     linkGoogleMapsOriginal: r.link_google_maps_original ?? undefined,
     criadoEm: r.criado_em, atualizadoEm: r.atualizado_em, deletedAt: r.excluido_em,
     localizacao: easting !== null && northing !== null && zona !== null && hemisferio && datum && latitude !== null && longitude !== null
@@ -59,6 +61,7 @@ export const ProjetoSupabaseRepository = {
         p_atualizado_em: original?.atualizadoEm ?? null,
         p_projeto: {
           id: projeto.id, cliente_id: projeto.clienteId, nome: projeto.nome, descricao: projeto.descricao,
+          abreviacao: projeto.abreviacao,
           prazo: projeto.prazo ?? null, link_google_maps_original: projeto.linkGoogleMapsOriginal ?? null,
           utm_easting: l?.easting ?? null, utm_northing: l?.northing ?? null, utm_zona: l?.zona ?? null,
           utm_hemisferio: l?.hemisferio ?? null, datum: l?.datum ?? null, latitude: l?.latitude ?? null, longitude: l?.longitude ?? null,

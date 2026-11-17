@@ -20,7 +20,8 @@ async function prepararFoto(src: string) {
   return { jpeg: canvas.toDataURL('image/jpeg', 0.85), w: canvas.width, h: canvas.height };
 }
 
-export async function gerarRelatorio(visita: Visita, atividades: string[], registros: RegistroCampo[], codigoRelatorio: string): Promise<RelatorioVisita> {
+export async function gerarRelatorio(visita: Visita, atividades: string[], registros: RegistroCampo[],
+  codigoRelatorio: string, abreviacaoProjeto?: string): Promise<RelatorioVisita> {
   const logo = await fetch('/Delta%20S%20-%20Fundo%20Transparente.png');
   if (!logo.ok) throw new Error('Logo institucional indisponível.');
   const png = new Uint8Array(await logo.arrayBuffer());
@@ -190,7 +191,7 @@ export async function gerarRelatorio(visita: Visita, atividades: string[], regis
   }
   return {
     id: crypto.randomUUID(), visitaId: visita.id, projetoId: visita.projetoId,
-    nomeArquivo: `${codigoRelatorio}.pdf`,
+    nomeArquivo: `${codigoRelatorio}${abreviacaoProjeto ? ` - ${abreviacaoProjeto}` : ''}.pdf`,
     geradoEm: new Date().toISOString(), atividades, registroIds: registros.map(r => r.id),
     fotografiaIds: fotos.map(({foto}) => foto.id), pdf: doc.output('blob'),
   };

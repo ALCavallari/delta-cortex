@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { RegistroCampo, Visita } from '@/types';
-import { RegistroCampoRepository, RelatorioRepository, VisitaRepository } from '@/services/repositoriosOperacionais';
+import { ProjetoRepository, RegistroCampoRepository, RelatorioRepository, VisitaRepository } from '@/services/repositoriosOperacionais';
 import { registrosDoRelatorio } from '@/services/fieldHistory';
 import { ATIVIDADES } from '@/services/rasActivities';
 import { baixarRelatorio } from '@/services/reportDownload';
@@ -20,7 +20,7 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
   const [salvo, setSalvo] = useState(false);
   const [registrosOriginais, setRegistrosOriginais] = useState<RegistroCampo[]>();
   const [descricoes, setDescricoes] = useState<Record<string, string>>({});
-  const numeroOriginal = original?.nomeArquivo.match(/^RAS-(\d{1,9})-\d{4}\.pdf$/)?.[1];
+  const numeroOriginal = original?.nomeArquivo.match(/^RAS-(\d{1,9})-\d{4}(?: - .+)?\.pdf$/)?.[1];
   const [sugestao, setSugestao] = useState('');
   const [numeroDigitado, setNumeroDigitado] = useState<string>();
   const [erroNumeracao, setErroNumeracao] = useState(false);
@@ -77,9 +77,10 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
       if (!atual || (atual.status !== 'em_andamento' && atual.status !== 'concluida')) {
         throw new Error('A visita está indisponível para emitir o relatório.');
       }
-      const [registros, { gerarRelatorio }] = await Promise.all([
+      const [registros, { gerarRelatorio }, projeto] = await Promise.all([
         RegistroCampoRepository.listarNoContexto(atual),
         import('@/services/rasPdf'),
+        atual.projetoId ? ProjetoRepository.obterPorId(atual.projetoId) : undefined,
       ]);
       let incluidos = registrosDoRelatorio(registros, atual);
       let textos: TextoRegistroRelatorio[] | undefined;
@@ -102,7 +103,7 @@ export function ReportActivitiesModal({ visita, original, atualizarRegistros = f
         }
         textos = revisoes;
       }
-      const relatorio = await gerarRelatorio(atual, atividades, incluidos, codigo);
+      const relatorio = await gerarRelatorio(atual, atividades, incluidos, codigo, projeto?.abreviacao);
       if (!relatorio.pdf.size) throw new Error('O PDF gerado está vazio.');
       await RelatorioRepository.adicionar(relatorio, original?.id, atualizarRegistros, textos);
       setSalvo(true);

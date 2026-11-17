@@ -34,6 +34,7 @@ export function ProjectModal({
   const [clienteId, setClienteId] = useState('');
   const [buscaCliente, setBuscaCliente] = useState('');
   const [nome, setNome] = useState('');
+  const [abreviacao, setAbreviacao] = useState('');
   const [descricao, setDescricao] = useState('');
   const [prazo, setPrazo] = useState('');
   const [linkMaps, setLinkMaps] = useState('');
@@ -68,6 +69,7 @@ export function ProjectModal({
       setBuscaCliente('');
     }
 
+    setAbreviacao(projectToEdit?.abreviacao ?? '');
     setPrazo(projectToEdit?.prazo ?? '');
     const linkOriginal = projectToEdit?.linkGoogleMapsOriginal ?? '';
     const ponto = lerLinkGoogleMaps(linkOriginal);
@@ -109,6 +111,10 @@ export function ProjectModal({
     if (!nome.trim()) {
       novosErros.nome = 'O nome do projeto é obrigatório.';
     }
+    if (!abreviacao.trim()) novosErros.abreviacao = 'Informe a abreviação do projeto.';
+    else if (/[<>:"/\\|?*]/.test(abreviacao) || abreviacao.trim().endsWith('.')) {
+      novosErros.abreviacao = 'Use uma abreviação válida para o nome do arquivo, sem símbolos como / ou * e sem ponto no final.';
+    }
 
     try { resolveLocation(localizacao); } catch (e) { novosErros.localizacao = (e as Error).message; }
     if (linkMaps.trim() && !lerLinkGoogleMaps(linkMaps)) novosErros.linkMaps = 'Informe um link HTTPS válido do Google Maps ou deixe o campo vazio.';
@@ -129,6 +135,7 @@ export function ProjectModal({
         linkGoogleMapsOriginal: linkMaps.trim() || undefined,
         clienteId,
         nome: nome.trim(),
+        abreviacao: abreviacao.trim(),
         descricao: descricao.trim(),
         criadoEm: projectToEdit ? projectToEdit.criadoEm : agora,
         atualizadoEm: agora,
@@ -304,6 +311,16 @@ export function ProjectModal({
               )}
             </div>
 
+            <div>
+              <label htmlFor="projeto-abreviacao" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Abreviação *
+              </label>
+              <input id="projeto-abreviacao" type="text" required maxLength={40} value={abreviacao}
+                onChange={e => setAbreviacao(e.target.value)} placeholder="Ex.: CGH Campo Real"
+                aria-invalid={!!erros.abreviacao}
+                className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-[#00AFF0] focus:outline-hidden focus:ring-2 focus:ring-blue-100" />
+              {erros.abreviacao && <p role="alert" className="mt-1 text-xs text-red-700">{erros.abreviacao}</p>}
+            </div>
             {/* CAMPO 3: Descrição (Texto com múltiplas linhas) */}
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">

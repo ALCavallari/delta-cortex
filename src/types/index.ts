@@ -48,6 +48,7 @@ export interface Profissional {
 }
 
 export interface Projeto {
+  abreviacao?: string;
   id: string;
   clienteId: string;
   nome: string;
