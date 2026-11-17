@@ -112,13 +112,14 @@ export async function gerarRelatorio(visita: Visita, atividades: string[], regis
     y += 1;
   }
   y += 5;
-  titulo('Observações e Ocorrências');
+  titulo('Ocorrências e Observações');
   if (!registros.length) paragrafo('Nenhum apontamento incluído nesta visita.');
   registros.forEach((r, i) => {
     const ocorrencia = r.tipo === 'Ocorrencia';
     const recorrente = ocorrencia && r.visitaId !== visita.id;
     const resolvido = ocorrencia && r.eventos?.some(e => e.visitaId === visita.id && e.situacao === 'resolvido' && (!visita.finalizadaEm || e.data <= visita.finalizadaEm));
-    paragrafo(`${i + 1}. ${tipo(r)}${recorrente ? ' (Recorrente)' : ''} — ${r.descricao}`);
+    const gravidade = ocorrencia && r.gravidade ? ` ${r.gravidade}` : '';
+    paragrafo(`${i + 1}. ${tipo(r)}${gravidade}${recorrente ? ' (Recorrente)' : ''} — ${r.descricao}`);
     if (resolvido) paragrafo('Resolução registrada nesta visita', 3);
     y += 5;
   });
