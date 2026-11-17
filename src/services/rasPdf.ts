@@ -124,24 +124,56 @@ export async function gerarRelatorio(visita: Visita, atividades: string[], regis
 
   const fotos = registros.flatMap((r, i) => [...(r.fotos ?? [])]
     .sort((a,b) => a.capturadaEm.localeCompare(b.capturadaEm) || a.id.localeCompare(b.id))
-    .map(foto => ({ foto, legenda: `${tipo(r)} - ${r.meio} - nº ${i + 1}` })));
+    .map(foto => ({ foto, legenda: `${tipo(r)} nº ${i + 1} - ${r.descricao}` })));
   if (fotos.length) {
-    for (let i = 0; i < fotos.length; i++) {
-      if (i % 4 === 0) { pagina(); titulo('Registro Fotográfico'); }
-      const { foto, legenda } = fotos[i];
+    const cartao = 85;
+    const passoLegenda = 4;
+    const alturaImagem = 90;
+    const abertura = 55;
+    const novaPaginaDeFotos = () => { pagina(); titulo('Registro Fotográfico'); };
+    const desenharFoto = async (foto: typeof fotos[number]['foto'], col: number, topo: number, altura: number) => {
       let imagem;
       try { imagem = await prepararFoto(foto.dataUrl); }
       catch { throw new Error('Uma fotografia vinculada não pôde ser lida. O relatório não foi emitido.'); }
-      const cartao = 85;
-      const col = x + (i % 2) * (largura - cartao);
-      const topo = 54 + (Math.floor((i % 4) / 2)) * 106;
       doc.setFillColor('#FFFFFF').setDrawColor(cores.borda).setLineWidth(0.2)
-        .roundedRect(col, topo, cartao, 100, 2.2, 2.2, 'FD');
+        .roundedRect(col, topo, cartao, altura, 2.2, 2.2, 'FD');
       const escala = Math.min((cartao - 6) / imagem.w, 85 / imagem.h);
       const w = imagem.w * escala, h = imagem.h * escala;
       doc.addImage(imagem.jpeg, 'JPEG', col + (cartao - w) / 2, topo + 3 + (85 - h) / 2, w, h, foto.id, 'FAST');
-      doc.setDrawColor(cores.borda).line(col + 3, topo + 90, col + cartao - 3, topo + 90);
-      texto(8.5, 'normal', cores.cinzaTexto).text(legenda, col + cartao / 2, topo + 96, { align: 'center' });
+    };
+    texto(8.5);
+    const comLegendas = fotos.map(item => ({
+      ...item, linhas: doc.splitTextToSize(item.legenda, cartao - 8) as string[],
+    }));
+    const alturaLinha = (linhas: string[]) => alturaImagem + 6 + linhas.length * passoLegenda;
+    novaPaginaDeFotos();
+    for (let i = 0; i < comLegendas.length;) {
+      const primeira = comLegendas[i];
+      const proxima = comLegendas[i + 1];
+      // Legendas excepcionalmente longas usam a largura da página e podem continuar na próxima.
+      if (alturaLinha(primeira.linhas) > limite - abertura) {
+        if (y + alturaImagem + 10 > limite) novaPaginaDeFotos();
+        await desenharFoto(primeira.foto, x, y, alturaImagem);
+        y += alturaImagem + 3;
+        paragrafo(primeira.legenda);
+        y += 6;
+        i += 1;
+        continue;
+      }
+      const fileira = proxima && alturaLinha(proxima.linhas) <= limite - abertura
+        ? [primeira, proxima] : [primeira];
+      const altura = Math.max(...fileira.map(item => alturaLinha(item.linhas)));
+      if (y + altura > limite) novaPaginaDeFotos();
+      for (const [coluna, { foto, linhas }] of fileira.entries()) {
+        const col = x + coluna * (largura - cartao);
+        await desenharFoto(foto, col, y, altura);
+        doc.setDrawColor(cores.borda).line(col + 3, y + alturaImagem, col + cartao - 3, y + alturaImagem);
+        linhas.forEach((linha, j) => {
+          texto(8.5, 'normal', cores.cinzaTexto).text(linha, col + 4, y + alturaImagem + 5 + j * passoLegenda);
+        });
+      }
+      y += altura + 6;
+      i += fileira.length;
     }
   } else {
     y += 5;
