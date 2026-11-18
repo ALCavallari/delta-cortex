@@ -63,12 +63,26 @@ export const VisitaSupabaseRepository = {
     conferirOperacao(error, 'consultar a visita');
     return data ? visitaDaLinha(data) : undefined;
   },
-  async criar(dados: Omit<Visita, 'identificacao' | 'executorNome' | 'responsavelTecnicoNome'>) {
+  async proximoNumero(projetoId: string) {
+    return confirmarLinha(await bancoOperacional().rpc('delta_cortex_proximo_numero_visita', { p_projeto: projetoId }),
+      'consultar a sequência do trabalho') as number;
+  },
+  async editarIdentificacao(visita: Visita, numero: number) {
+    const resultado = await bancoOperacional().rpc('delta_cortex_editar_identificacao_visita', {
+      p_visita: visita.id, p_numero: numero, p_atualizado_em: visita.atualizadoEm,
+    });
+    if (resultado.error?.code === 'PDC04') throw new Error('Este número já foi usado neste projeto e ano. Informe outro.');
+    return visitaDaLinha(confirmarLinha(resultado, 'editar a identificação') as unknown as LinhaVisita);
+  },
+  async criar(dados: Omit<Visita, 'identificacao' | 'executorNome' | 'responsavelTecnicoNome'>, numeroManual?: number) {
     if (!dados.projetoId || dados.motivo !== 'Visita Sistemática') throw new Error('Selecione um projeto para o Acompanhamento Sistemático.');
-    return visitaDaLinha(confirmarLinha(await bancoOperacional().from(visitas).insert({
+    const resultado = await bancoOperacional().from(visitas).insert({
       id: dados.id, projeto_id: dados.projetoId, cliente_id: dados.clienteId,
+      ...(numeroManual === undefined ? {} : { identificacao: `AS-${numeroManual}-${dados.data.slice(0, 4)}` }),
       data_visita: dados.data, executor_id: dados.executorId, responsavel_tecnico_id: dados.responsavelTecnicoId,
-    }).select('*').maybeSingle<LinhaVisita>(), 'criar a visita'));
+    }).select('*').maybeSingle<LinhaVisita>();
+    if (resultado.error?.code === 'PDC04') throw new Error('Este número já foi usado neste projeto e ano. Informe outro.');
+    return visitaDaLinha(confirmarLinha(resultado, 'criar a visita'));
   },
   excluirLogico: (id: string) => atualizarVisita(id, { excluido_em: agora() }, 'excluir a visita'),
   restaurar: (id: string) => atualizarVisita(id, { excluido_em: null }, 'restaurar a visita'),

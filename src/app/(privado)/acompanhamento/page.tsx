@@ -9,6 +9,7 @@ import { descricoesModulos } from '@/services/moduleDescriptions';
 import { ProjectOccurrenceMap } from '@/components/Map/ProjectOccurrenceMap';
 import { Header } from '@/components/Header';
 import { NewVisitModal } from '@/components/NewVisitModal';
+import { EditVisitIdentificationModal } from '@/components/EditVisitIdentificationModal';
 import { PainelNotificacoes, useNotificacoesCampo } from '@/components/NotificacoesCampo';
 import { Visita, Cliente, Projeto, Profissional } from '@/types';
 import { usePerfil, useUsuarioId } from '@/components/auth/PerfilContext';
@@ -34,6 +35,7 @@ import {
   Trash2,
   FileDown,
   FilePenLine,
+  Pencil,
   Share2,
   RotateCcw,
   Search,
@@ -56,6 +58,8 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
   const restrito = clienteExterno || tecnicoDesignado;
   const [visitaCompartilhada, setVisitaCompartilhada] = useState<Visita | null>(null);
   const [visitaRelatorios, setVisitaRelatorios] = useState<Visita | null>(null);
+  const [visitaIdentificacao, setVisitaIdentificacao] = useState<Visita | null>(null);
+  const podeEditarIdentificacao = perfil === 'admin' || perfil === 'editor' || perfil === 'tecnico';
   const [baixando, setBaixando] = useState<string | null>(null);
   const [comRelatorio, setComRelatorio] = useState<Set<string>>(new Set());
   const [aba, setAba] = useState<'trabalhos' | 'mapa' | 'notificacoes'>(clienteExterno ? 'mapa' : 'trabalhos');
@@ -741,6 +745,10 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                     </Link>
 
+                    {podeEditarIdentificacao && <button type="button" title="Editar identificação do trabalho"
+                      aria-label={`Editar identificação de ${visita.identificacao}`}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100"
+                      onClick={() => setVisitaIdentificacao(visita)}><Pencil className="h-4 w-4" aria-hidden /></button>}
                     {comRelatorio.has(visita.id) && <>
                       {(perfil === 'admin' || tecnicoDesignado) && <button type="button" title="Gerenciar relatórios"
                         aria-label={`Editar ou excluir relatórios de ${visita.identificacao}`}
@@ -782,6 +790,12 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
         </section>
         </>}
       </main>
+      {visitaIdentificacao && podeEditarIdentificacao && <EditVisitIdentificationModal key={visitaIdentificacao.id}
+        visita={visitaIdentificacao} fechar={() => setVisitaIdentificacao(null)} salvar={atualizada => {
+          setVisitas(atuais => atuais.map(item => item.id === atualizada.id ? atualizada : item));
+          setVisitaIdentificacao(null);
+          showToast('Identificação atualizada.');
+        }} />}
       {visitaCompartilhada && <ShareReportModal key={visitaCompartilhada.id}
         visitaId={visitaCompartilhada.id} onClose={() => setVisitaCompartilhada(null)} />}
       {(perfil === 'admin' || tecnicoDesignado) && visitaRelatorios && <RelatoriosEmitidos key={visitaRelatorios.id} visita={visitaRelatorios}

@@ -52,6 +52,19 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
   const [projetoId, setProjetoId] = useState('');
   const [buscaProjeto, setBuscaProjeto] = useState('');
   const [dataVisita, setDataVisita] = useState('');
+  const [numeroManual, setNumeroManual] = useState(false);
+  const [numeroDigitado, setNumeroDigitado] = useState('');
+  const [sugestaoNumero, setSugestaoNumero] = useState<{ projetoId: string; numero: number }>();
+  const [falhaSequencia, setFalhaSequencia] = useState(false);
+
+  useEffect(() => {
+    if (!projetoId) return;
+    let ativo = true;
+    void VisitaRepository.proximoNumero(projetoId).then(numero => {
+      if (ativo) { setSugestaoNumero({ projetoId, numero }); setFalhaSequencia(false); }
+    }).catch(() => { if (ativo) setFalhaSequencia(true); });
+    return () => { ativo = false; };
+  }, [projetoId]);
 
   // Validação
   const [erros, setErros] = useState<Record<string, string>>({});
@@ -164,6 +177,9 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
     if (!dataVisita) {
       novosErros.dataVisita = 'Informe a data da visita.';
     }
+    if (numeroManual && (!/^\d{1,9}$/.test(numeroDigitado) || Number(numeroDigitado) < 1)) {
+      novosErros.identificacao = 'Informe um número positivo de até nove dígitos.';
+    }
 
     setErros(novosErros);
     return Object.keys(novosErros).length === 0;
@@ -191,7 +207,7 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
         status: 'em_andamento',
         criadoEm: new Date().toISOString(),
         atualizadoEm: new Date().toISOString(),
-      });
+      }, numeroManual ? Number(numeroDigitado) : undefined);
 
       if (onVisitCreated) {
         onVisitCreated(novaVisita);
@@ -436,9 +452,21 @@ export function NewVisitModal({ onClose, onVisitCreated, tecnicoDesignado = fals
 
             <div>
               <p className="mb-1 text-xs font-semibold text-slate-700">Identificação da Visita</p>
-              <p className="rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm text-slate-600">
-                Gerada ao iniciar no formato AS-número-ano.
-              </p>
+              <label className="mb-2 flex items-center gap-2 text-xs text-slate-600">
+                <input type="checkbox" checked={numeroManual} disabled={iniciando}
+                  onChange={e => setNumeroManual(e.target.checked)} />
+                Desvincular da sequência anterior
+              </label>
+              <label className="block text-xs text-slate-600">Número do trabalho
+                <input type="text" inputMode="numeric" maxLength={9} required={numeroManual}
+                  readOnly={!numeroManual} disabled={iniciando}
+                  value={numeroManual ? numeroDigitado : sugestaoNumero?.projetoId === projetoId ? String(sugestaoNumero.numero) : ''}
+                  onChange={e => setNumeroDigitado(e.target.value)}
+                  placeholder={numeroManual ? 'Digite apenas o número' : 'Calculando sequência…'}
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-mono read-only:bg-slate-100" />
+              </label>
+              {erros.identificacao && <p role="alert" className="mt-1 text-xs text-red-700">{erros.identificacao}</p>}
+              {!numeroManual && falhaSequencia && <p className="mt-1 text-xs text-slate-600">A sequência será confirmada ao iniciar o trabalho.</p>}
             </div>
           </div>
 
