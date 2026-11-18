@@ -7,6 +7,7 @@ import { usePerfil } from '@/components/auth/PerfilContext';
 import { BotaoAcaoCadastro } from '@/components/RegistrationActionButton';
 import { ContratoForm } from '@/components/financeiro/ContratoForm';
 import { FaturamentosPanel } from '@/components/financeiro/FaturamentosPanel';
+import { ConfiguracoesNFSe } from '@/components/financeiro/ConfiguracoesNFSe';
 import { botaoFinanceiro, botaoSecundarioFinanceiro, campoFinanceiro } from '@/components/financeiro/FinanceiroDialog';
 import { ClienteRepository, ProjetoRepository } from '@/services/repositoriosOperacionais';
 import { FinanceiroRepository } from '@/services/financeiroSupabase';
@@ -19,7 +20,7 @@ export default function FinanceiroPage() {
   const perfil = usePerfil();
   const podeEditar = perfil === 'admin' || perfil === 'editor';
   const permitido = podeEditar || perfil === 'leitor';
-  const [aba, setAba] = useState<'contratos' | 'faturamentos'>('contratos');
+  const [aba, setAba] = useState<'contratos' | 'faturamentos' | 'nfse'>('contratos');
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
@@ -53,8 +54,8 @@ export default function FinanceiroPage() {
             {podeEditar && <button type="button" disabled={carregando || !!erro} className={botaoFinanceiro} onClick={() => setModal({})}><Plus size={18} />Novo Contrato</button>}
           </div>
         </div>
-        <nav aria-label="Áreas do Financeiro" className="flex gap-5 border-b border-slate-200">
-          {(['contratos', 'faturamentos'] as const).map(a => <button type="button" key={a} aria-current={aba === a ? 'page' : undefined} onClick={() => setAba(a)} className={`border-b-2 px-2 py-3 text-sm font-semibold ${aba === a ? 'border-[#00AFF0] text-sky-700' : 'border-transparent text-slate-500 hover:text-[#333436]'}`}>{a === 'contratos' ? 'Contratos' : 'Faturamentos e Projeções'}</button>)}
+        <nav aria-label="Áreas do Financeiro" className="flex gap-5 overflow-x-auto border-b border-slate-200">
+          {(['contratos', 'faturamentos', 'nfse'] as const).map(a => <button type="button" key={a} aria-current={aba === a ? 'page' : undefined} onClick={() => setAba(a)} className={`shrink-0 border-b-2 px-2 py-3 text-sm font-semibold ${aba === a ? 'border-[#00AFF0] text-sky-700' : 'border-transparent text-slate-500 hover:text-[#333436]'}`}>{a === 'contratos' ? 'Contratos' : a === 'faturamentos' ? 'Faturamentos e Projeções' : 'Configurações de NFS-e'}</button>)}
         </nav>
         <p className="text-xs text-slate-500">Fonte de dados: Supabase{!podeEditar && ' · Acesso de leitura'}</p>
         {aviso && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">{aviso}</p>}
@@ -81,6 +82,7 @@ export default function FinanceiroPage() {
             {(!clientes.length || !projetos.length) && <p className="rounded-xl bg-sky-50 p-3 text-sm text-sky-800">Cadastre clientes e projetos vinculados antes de criar um contrato.</p>}
           </div>
           <div hidden={aba !== 'faturamentos'}><FaturamentosPanel contratos={contratos} podeEditar={podeEditar} onChanged={atualizar} /></div>
+          {aba === 'nfse' && <ConfiguracoesNFSe podeEditar={podeEditar} />}
         </div>
       </>}
     </main>

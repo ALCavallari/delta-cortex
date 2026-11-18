@@ -1,3 +1,5 @@
+import type { PreparacaoEmissaoNFSe } from './nfse';
+
 export const periodicidades = {
   unico: 'Único', faseado: 'Faseado', mensal: 'Mensal', bimensal: 'Bimensal',
   trimestral: 'Trimestral', semestral: 'Semestral', anual: 'Anual',
@@ -15,6 +17,10 @@ export interface Fatura {
   valor_centavos: number;
   situacao: 'pendente' | 'emitida';
   emitida_em: string | null;
+  competencia_nfse?: string | null;
+  periodo_servicos?: string | null;
+  descricao_nfse?: string | null;
+  preparacao_emissao?: PreparacaoEmissaoNFSe | null;
 }
 export interface Contrato {
   id: string;

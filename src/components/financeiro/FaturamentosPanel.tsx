@@ -6,6 +6,8 @@ import type { Contrato, Fatura } from '@/types/financeiro';
 import { dataBr, dataValida, hojeLocal, moeda, somarMeses } from '@/services/faturamento';
 import { FinanceiroRepository } from '@/services/financeiroSupabase';
 import { botaoFinanceiro, botaoSecundarioFinanceiro, campoFinanceiro, FinanceiroDialog } from './FinanceiroDialog';
+import { DadosFaturaNFSe } from './DadosFaturaNFSe';
+import { RevisaoNFSe } from './RevisaoNFSe';
 
 type Linha = { contrato: Contrato; fatura: Fatura };
 const nomeCliente = (c: Contrato) => c.clientes?.nome_razao_social ?? 'Cliente indisponível';
@@ -23,6 +25,8 @@ export function FaturamentosPanel({ contratos, podeEditar, onChanged }: { contra
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
   const [aviso, setAviso] = useState('');
+  const [dadosFatura, setDadosFatura] = useState<Linha | null>(null);
+  const [revisar, setRevisar] = useState<string[] | null>(null);
   const linhas = contratos.flatMap(contrato => contrato.faturas.map(fatura => ({ contrato, fatura })));
   const base = linhas.filter(l => !cliente || l.contrato.cliente_id === cliente);
   const doMes = base.filter(l => l.fatura.data_faturamento.startsWith(mes));
@@ -88,6 +92,7 @@ export function FaturamentosPanel({ contratos, podeEditar, onChanged }: { contra
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-4">
         <div><h2 className="font-bold">Faturamentos de {tituloMes(mes)}</h2><p className="text-xs text-slate-500">{exibidas.length} fatura(s) · {selecaoValida.length} selecionada(s) · {moeda(totalSelecionado)}</p></div>
         {podeEditar && <div className="flex flex-wrap gap-2"><button type="button" disabled={!pendentes.length || situacao === 'emitida'} className={botaoSecundarioFinanceiro} onClick={() => setSelecionadas(new Set(pendentes.map(l => l.fatura.id)))}>Selecionar pendentes</button>
+          <button type="button" disabled={!selecaoValida.length} className={botaoSecundarioFinanceiro} onClick={() => setRevisar(selecaoValida.map(l => l.fatura.id))}>Revisar NFS-e</button>
           <span title="A automação de NFS-e será disponibilizada em uma próxima etapa."><button type="button" disabled className={botaoFinanceiro}><FileCheck2 size={16} />Emitir NFse</button></span>
         </div>}
       </div>
@@ -97,7 +102,7 @@ export function FaturamentosPanel({ contratos, podeEditar, onChanged }: { contra
         {podeEditar && <th className="p-3"><input type="checkbox" aria-label="Selecionar todas as faturas pendentes visíveis" disabled={!exibidas.some(l => l.fatura.situacao === 'pendente' && l.contrato.situacao === 'vigente')}
           checked={exibidas.some(l => l.fatura.situacao === 'pendente' && l.contrato.situacao === 'vigente') && exibidas.filter(l => l.fatura.situacao === 'pendente' && l.contrato.situacao === 'vigente').every(l => selecionadas.has(l.fatura.id))}
           onChange={e => setSelecionadas(new Set(e.target.checked ? exibidas.filter(l => l.fatura.situacao === 'pendente' && l.contrato.situacao === 'vigente').map(l => l.fatura.id) : []))} /></th>}
-        <th className="p-3">Cliente / Projeto</th><th className="p-3">Contrato / Parcela</th><th className="p-3">Faturamento</th><th className="p-3">Valor</th><th className="p-3">Situação</th>{podeEditar && <th className="p-3">Ação</th>}
+        <th className="p-3">Cliente / Projeto</th><th className="p-3">Contrato / Parcela</th><th className="p-3">Faturamento</th><th className="p-3">Valor</th><th className="p-3">Situação</th><th className="p-3">Ações</th>
       </tr></thead><tbody className="divide-y divide-slate-100">{exibidas.map(l => <tr key={l.fatura.id} className="hover:bg-slate-50/70">
         {podeEditar && <td className="p-3"><input type="checkbox" aria-label={`Selecionar parcela ${l.fatura.numero} de ${l.contrato.titulo}`} disabled={l.fatura.situacao === 'emitida' || l.contrato.situacao !== 'vigente'} checked={selecaoValida.some(s => s.fatura.id === l.fatura.id)} onChange={e => selecionar(l.fatura.id, e.target.checked)} /></td>}
         <td className="max-w-64 p-3"><p className="font-medium">{nomeCliente(l.contrato)}</p><p className="text-xs text-slate-500">{nomeProjeto(l.contrato)}</p></td>
@@ -108,11 +113,11 @@ export function FaturamentosPanel({ contratos, podeEditar, onChanged }: { contra
           {l.fatura.emitida_em && <p className="mt-1 text-xs text-slate-500">Emissão: {dataBr(l.fatura.emitida_em)}</p>}
           {l.contrato.situacao !== 'vigente' && <p className="mt-1 text-xs text-slate-500">Contrato {l.contrato.situacao} · fora da previsão pendente</p>}
         </td>
-        {podeEditar && <td className="p-3"><button type="button" disabled={l.fatura.situacao === 'pendente' && l.contrato.situacao !== 'vigente'} onClick={() => {
+        <td className="p-3"><button type="button" onClick={() => setDadosFatura(l)} className="block rounded-lg p-2 text-xs font-semibold text-sky-700 hover:bg-sky-50">Dados da NFS-e</button>{podeEditar && <button type="button" disabled={l.fatura.situacao === 'pendente' && l.contrato.situacao !== 'vigente'} onClick={() => {
           setEmissao({ linha: l, emitida: l.fatura.situacao !== 'emitida' }); setDataEmissao(hojeLocal()); setErro('');
         }} className="inline-flex items-center gap-1 rounded-lg p-2 text-xs font-semibold text-sky-700 hover:bg-sky-50 disabled:opacity-40">
           {l.fatura.situacao === 'emitida' ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />}{l.fatura.situacao === 'emitida' ? 'Voltar a pendente' : 'Registrar emissão'}
-        </button></td>}
+        </button>}</td>
       </tr>)}</tbody></table></div>
       {!exibidas.length && <p className="p-8 text-center text-sm text-slate-500">Nenhum faturamento encontrado para os filtros selecionados.</p>}
     </section>
@@ -136,6 +141,10 @@ export function FaturamentosPanel({ contratos, podeEditar, onChanged }: { contra
       {!futuro.length && <p className="py-4 text-sm text-slate-500">Nenhum faturamento futuro programado.</p>}
       {futuro.length > limiteFuturo && <button type="button" className={botaoSecundarioFinanceiro} onClick={() => setLimiteFuturo(l => l + 24)}>Mostrar mais faturamentos</button>}
     </section>
+    {dadosFatura && <DadosFaturaNFSe contrato={dadosFatura.contrato} fatura={dadosFatura.fatura} podeEditar={podeEditar} onClose={() => setDadosFatura(null)} onSaved={() => {
+      setDadosFatura(null); setAviso('Dados da fatura salvos no Supabase.'); onChanged();
+    }} />}
+    {revisar && <RevisaoNFSe ids={revisar} onClose={() => setRevisar(null)} />}
     {emissao && <FinanceiroDialog titulo={emissao.emitida ? 'Registrar emissão da fatura' : 'Retornar fatura a pendente'} ocupado={ocupado} onClose={() => setEmissao(null)}>
       <form className="space-y-4 p-5" onSubmit={e => { e.preventDefault(); void confirmarEmissao(); }}><p className="text-sm">{emissao.linha.contrato.titulo} · Parcela {emissao.linha.fatura.numero} · <strong>{moeda(emissao.linha.fatura.valor_centavos)}</strong></p>
         <p className="text-sm text-slate-600">{emissao.emitida ? 'Confirme apenas se a nota fiscal já foi emitida. Esta ação registra a situação financeira e não emite uma NFS-e.' : 'Esta ação corrige a situação da fatura no Delta CorteX. Ela não cancela uma nota fiscal no órgão emissor.'}</p>
