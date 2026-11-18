@@ -35,7 +35,6 @@ import {
   Trash2,
   FileDown,
   FilePenLine,
-  Pencil,
   Share2,
   RotateCcw,
   Search,
@@ -745,15 +744,14 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                     </Link>
 
-                    {podeEditarIdentificacao && <button type="button" title="Editar identificação do trabalho"
-                      aria-label={`Editar identificação de ${visita.identificacao}`}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100"
-                      onClick={() => setVisitaIdentificacao(visita)}><Pencil className="h-4 w-4" aria-hidden /></button>}
+                    {podeEditarIdentificacao && <button type="button" title="Editar Relatório/Identificação"
+                      aria-label={`Editar Relatório/Identificação de ${visita.identificacao}`}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-semibold text-sky-700 hover:bg-sky-50"
+                      onClick={() => setVisitaRelatorios(visita)}>
+                      <FilePenLine className="h-4 w-4 shrink-0" aria-hidden />
+                      Editar Relatório/Identificação
+                    </button>}
                     {comRelatorio.has(visita.id) && <>
-                      {(perfil === 'admin' || tecnicoDesignado) && <button type="button" title="Gerenciar relatórios"
-                        aria-label={`Editar ou excluir relatórios de ${visita.identificacao}`}
-                        className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-sky-700 hover:bg-sky-50"
-                        onClick={() => setVisitaRelatorios(visita)}><FilePenLine className="h-4 w-4" /></button>}
                       <button type="button" title="Baixar relatório PDF"
                       aria-label={`Baixar relatório PDF de ${visita.identificacao}`}
                       className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 text-sky-700 hover:bg-sky-50 disabled:opacity-50"
@@ -798,7 +796,9 @@ function TrabalhoDeCampo({ perfil }: { perfil: Perfil }) {
         }} />}
       {visitaCompartilhada && <ShareReportModal key={visitaCompartilhada.id}
         visitaId={visitaCompartilhada.id} onClose={() => setVisitaCompartilhada(null)} />}
-      {(perfil === 'admin' || tecnicoDesignado) && visitaRelatorios && <RelatoriosEmitidos key={visitaRelatorios.id} visita={visitaRelatorios}
+      {podeEditarIdentificacao && visitaRelatorios && <RelatoriosEmitidos key={visitaRelatorios.id} visita={visitaRelatorios}
+        podeGerenciar={perfil === 'admin' || tecnicoDesignado}
+        onEditarIdentificacao={() => { setVisitaIdentificacao(visitaRelatorios); setVisitaRelatorios(null); }}
         fechar={() => setVisitaRelatorios(null)} onAlterado={() => void carregarDados()} />}
 
       {/* Modal Novo Trabalho */}

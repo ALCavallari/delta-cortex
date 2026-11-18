@@ -10,8 +10,9 @@ import { ReportActivitiesModal } from './ReportActivitiesModal';
 
 const botao = 'inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold hover:bg-slate-50 disabled:opacity-50';
 
-export function RelatoriosEmitidos({ projetoId, visita, fechar, onAlterado }: {
+export function RelatoriosEmitidos({ projetoId, visita, fechar, onAlterado, onEditarIdentificacao, podeGerenciar = true }: {
   projetoId?: string; visita?: Visita; fechar?: () => void; onAlterado?: () => void;
+  onEditarIdentificacao?: () => void; podeGerenciar?: boolean;
 }) {
   const [lista, setLista] = useState<RelatorioListado[]>();
   const [erroCarga, setErroCarga] = useState('');
@@ -64,7 +65,7 @@ export function RelatoriosEmitidos({ projetoId, visita, fechar, onAlterado }: {
             <button className={botao} type="button" disabled={ocupado || !!excluir} onClick={() => void executar(async () => {
               baixarRelatorio(await RelatorioRepository.baixarPorId(r.id));
             })}><FileDown size={15} aria-hidden /> Baixar PDF</button>
-            {visita && <>
+            {visita && podeGerenciar && <>
               <button className={botao} type="button" disabled={ocupado || !!excluir} onClick={() => setEditar(r)}>
                 <Pencil size={15} aria-hidden /> Editar
               </button>
@@ -98,7 +99,15 @@ export function RelatoriosEmitidos({ projetoId, visita, fechar, onAlterado }: {
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
     <section role="dialog" aria-modal="true" aria-labelledby="titulo-gerenciar-relatorios"
       className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white">
-      <h2 id="titulo-gerenciar-relatorios" className="border-b p-4 font-bold">Gerenciar Relatórios</h2>
+      <h2 id="titulo-gerenciar-relatorios" className="border-b p-4 font-bold">
+        {onEditarIdentificacao ? 'Editar Relatório/Identificação' : 'Gerenciar Relatórios'}
+      </h2>
+      {onEditarIdentificacao && <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
+        <span className="font-mono text-sm text-slate-600">{visita.identificacao}</span>
+        <button type="button" className={botao} disabled={ocupado || !!excluir} onClick={onEditarIdentificacao}>
+          <Pencil size={15} aria-hidden /> Editar identificação
+        </button>
+      </div>}
       {conteudo}
       <div className="flex justify-end border-t p-3">
         <button className={botao} type="button" disabled={ocupado} onClick={fechar}>Fechar</button>
